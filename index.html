@@ -4376,35 +4376,46 @@ function showToast(msg, type) {
 // Tenta Firebase. Se falhar por qualquer motivo (domínio, popup, rede),
 // cria conta local e entra direto. O usuário SEMPRE passa da tela de login.
 window._tryGoogleLogin = function() {
-  if (window._fbReady && typeof window._fbGoogleLogin === 'function') {
-    // Firebase carregou — usa o login real com popup/redirect
-    window._fbGoogleLogin().catch(function(e) {
-      // Só usa fallback local se for erro de rede/domínio grave
-      // Erros de popup fechado pelo usuário são silenciosos
-      if (e.code && e.code !== 'auth/popup-closed-by-user' &&
-          e.code !== 'auth/cancelled-popup-request') {
-        console.warn('[Google] Firebase falhou, usando fallback local:', e.code);
-        _googleLocalFallback();
-      }
-    });
-  } else if (!window._fbReady) {
-    // Firebase ainda não carregou — aguarda até 3s antes de usar fallback
-    var attempts = 0;
+  // Se estiver em file://, avisa logo
+  if (window.location.protocol === 'file:') {
+    showToast('⚠ Google Login não funciona em arquivos locais (file://). Use um servidor (http://).', 'err');
+    _googleLocalFallback();
+    return;
+  }
+
+  var attempts = 0;
+  var maxAttempts = 10; // 5 segundos total
+  
+  var checkAndLogin = function() {
+    if (window._fbReady && typeof window._fbGoogleLogin === 'function') {
+      window._fbGoogleLogin().catch(function(e) {
+        console.error('[Google] Erro no login:', e.code, e.message);
+        // Se o usuário fechou o popup, não faz nada (ele pode clicar de novo)
+        if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') {
+          showToast('✕ Login cancelado', 'warn');
+        } else {
+          // Outros erros (domínio, rede): avisa e usa fallback local
+          showToast('⚠ Erro no Google Auth: ' + e.code, 'err');
+          _googleLocalFallback();
+        }
+      });
+      return true;
+    }
+    return false;
+  };
+
+  if (!checkAndLogin()) {
+    showToast('⏳ Inicializando Firebase...', 'info');
     var waitFb = setInterval(function() {
       attempts++;
-      if (window._fbReady && typeof window._fbGoogleLogin === 'function') {
+      if (checkAndLogin()) {
         clearInterval(waitFb);
-        window._fbGoogleLogin().catch(function(e) {
-          if (e.code && e.code !== 'auth/popup-closed-by-user') _googleLocalFallback();
-        });
-      } else if (attempts >= 6) {
+      } else if (attempts >= maxAttempts) {
         clearInterval(waitFb);
-        showToast('⚠ Firebase demorou para carregar. Tente novamente.', 'warn');
+        showToast('⚠ Firebase não carregou. Usando modo offline.', 'warn');
+        _googleLocalFallback();
       }
     }, 500);
-  } else {
-    // Firebase pronto mas _fbGoogleLogin não existe — fallback local
-    _googleLocalFallback();
   }
 };
 
@@ -9149,7 +9160,9 @@ window._joinCallRoom = async function(roomId) {
     if (!snap.exists()) return;
     snap.forEach(child => {
       const uid = child.key;
-      if (uid !== _myCallId && !_peers[uid]) {
+      // Regra de polidez: quem entrou DEPOIS (joinedAt maior) cria a oferta
+      // ou usamos ordem alfabética de UID para decidir quem inicia
+      if (uid !== _myCallId && !_peers[uid] && _myCallId > uid) {
         _createOffer(roomId, uid);
       }
     });
@@ -9161,8 +9174,12 @@ window._joinCallRoom = async function(roomId) {
 async function _createOffer(roomId, targetUid) {
   const pc = _createPeerConn(roomId, targetUid);
   // Adiciona trilhas de áudio/vídeo locais se disponíveis
-  if (callState.micStream) callState.micStream.getTracks().forEach(t => pc.addTrack(t, callState.micStream));
-  if (callState.camStream) callState.camStream.getTracks().forEach(t => pc.addTrack(t, callState.camStream));
+  if (callState.micStream) {
+    callState.micStream.getTracks().forEach(t => pc.addTrack(t, callState.micStream));
+  }
+  if (callState.camStream) {
+    callState.camStream.getTracks().forEach(t => pc.addTrack(t, callState.camStream));
+  }
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
   _sendSignal(roomId, targetUid, { type: 'offer', sdp: offer.sdp, from: _myCallId });
@@ -9202,11 +9219,13 @@ function _createPeerConn(roomId, peerUid) {
 
   pc.ontrack = (e) => {
     // Reproduz áudio/vídeo remoto
+    console.log('[WebRTC] Recebendo track de:', peerUid, e.streams[0]);
     _attachRemoteStream(peerUid, e.streams[0]);
   };
 
   pc.onconnectionstatechange = () => {
-    if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+    console.log('[WebRTC] Estado da conexão com', peerUid, ':', pc.connectionState);
+    if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
       try { pc.close(); } catch(e){}
       delete _peers[peerUid];
       _removeRemoteStream(peerUid);
@@ -9241,14 +9260,20 @@ function _attachRemoteStream(uid, stream) {
 
 function _removeRemoteStream(uid) {
   var el = _remoteAudioEls[uid];
-  if (el) { el.srcObject = null; el.remove(); delete _remoteAudioEls[uid]; }
-}
-
-// ── Hook: quando mic é ativado, adiciona trilha nos peers existentes ──
-window._rtcAddMicTrack = function(stream) {
+  if (el) { el.srcObject = null; el.remove(); delete _remoteAudioEls[uid]; }// ── Hook: quando mic/cam é ativado, adiciona trilha nos peers existentes ──
+window._rtcAddMediaTrack = function(stream) {
+  if (!stream) return;
   Object.entries(_peers).forEach(([uid, pc]) => {
-    stream.getTracks().forEach(t => {
-      try { pc.addTrack(t, stream); } catch(e){}
+    stream.getTracks().forEach(track => {
+      try {
+        // Evita adicionar a mesma track duas vezes
+        const senders = pc.getSenders();
+        const alreadyExists = senders.find(s => s.track && s.track.id === track.id);
+        if (!alreadyExists) {
+          console.log('[WebRTC] Adicionando track', track.kind, 'para peer:', uid);
+          pc.addTrack(track, stream);
+        }
+      } catch(e) { console.warn('[WebRTC] Erro ao adicionar track:', e); }
     });
   });
 };
@@ -9277,11 +9302,23 @@ window.endCall = function() {
   if (_origEndCall) _origEndCall();
 };
 
-// ── Hook no mic para adicionar ao WebRTC ──
+// ── Hooks de mídia para adicionar ao WebRTC em tempo real ──
 const _origDoRequestMic = window._doRequestMic;
 window._doRequestMic = async function() {
-  if (_origDoRequestMic) await _origDoRequestMic();
-  if (callState.micStream) window._rtcAddMicTrack(callState.micStream);
+  if (typeof _origDoRequestMic === 'function') await _origDoRequestMic();
+  if (callState.micStream) window._rtcAddMediaTrack(callState.micStream);
+};
+
+const _origToggleCam = window.callToggleCam;
+window.callToggleCam = async function() {
+  if (typeof _origToggleCam === 'function') await _origToggleCam();
+  if (callState.camStream) window._rtcAddMediaTrack(callState.camStream);
+};
+
+const _origToggleScreen = window.callToggleScreen;
+window.callToggleScreen = async function() {
+  if (typeof _origToggleScreen === 'function') await _origToggleScreen();
+  if (callState.screenStream) window._rtcAddMediaTrack(callState.screenStream);
 };
 
 </script>
