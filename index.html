@@ -4379,7 +4379,6 @@ window._tryGoogleLogin = function() {
   // Se estiver em file://, avisa logo
   if (window.location.protocol === 'file:') {
     showToast('⚠ Google Login não funciona em arquivos locais (file://). Use um servidor (http://).', 'err');
-    _googleLocalFallback();
     return;
   }
 
@@ -4394,9 +4393,9 @@ window._tryGoogleLogin = function() {
         if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') {
           showToast('✕ Login cancelado', 'warn');
         } else {
-          // Outros erros (domínio, rede): avisa e usa fallback local
+          // Outros erros (domínio, rede): avisa e mostra o erro real
           showToast('⚠ Erro no Google Auth: ' + e.code, 'err');
-          _googleLocalFallback();
+          // NÃO usa fallback local aqui para não criar usuário bugado
         }
       });
       return true;
@@ -4412,8 +4411,7 @@ window._tryGoogleLogin = function() {
         clearInterval(waitFb);
       } else if (attempts >= maxAttempts) {
         clearInterval(waitFb);
-        showToast('⚠ Firebase não carregou. Usando modo offline.', 'warn');
-        _googleLocalFallback();
+        showToast('⚠ Firebase não carregou. Verifique sua conexão.', 'err');
       }
     }, 500);
   }
@@ -8754,12 +8752,13 @@ getRedirectResult(auth).then(async function(result) {
 });
 
 // Expõe para funções legadas
-window._fbReady    = true;
-window._googleLoginAttempts = 0;
 window._fbSignIn   = _fbSignIn;
 window._fbSignUp   = _fbCreateUser;
 window._fbSignOut  = () => signOut(auth);
 window.doGoogleLogin = _fbGoogleLogin;
+// Marca como pronto APÓS expor todas as funções
+window._fbReady    = true;
+window._googleLoginAttempts = 0;
 console.log('[Firebase] Pronto. doGoogleLogin → _fbGoogleLogin');
 
 // ── CATÁLOGO GLOBAL DE CAMPANHAS ──
@@ -9160,9 +9159,9 @@ window._joinCallRoom = async function(roomId) {
     if (!snap.exists()) return;
     snap.forEach(child => {
       const uid = child.key;
-      // Regra de polidez: quem entrou DEPOIS (joinedAt maior) cria a oferta
-      // ou usamos ordem alfabética de UID para decidir quem inicia
-      if (uid !== _myCallId && !_peers[uid] && _myCallId > uid) {
+      // Regra de polidez: quem tem o UID "menor" inicia a oferta para evitar colisões (glare)
+      if (uid !== _myCallId && !_peers[uid] && _myCallId < uid) {
+        console.log('[WebRTC] Iniciando oferta para:', uid);
         _createOffer(roomId, uid);
       }
     });
@@ -9243,19 +9242,30 @@ function _sendSignal(roomId, targetUid, data) {
 const _remoteAudioEls = {};
 function _attachRemoteStream(uid, stream) {
   if (!stream) return;
+  console.log('[WebRTC] Anexando stream remoto para:', uid);
+  
+  // Áudio
   let el = _remoteAudioEls[uid];
   if (!el) {
     el = document.createElement('audio');
     el.autoplay = true;
+    el.playsinline = true;
     el.style.display = 'none';
     document.body.appendChild(el);
     _remoteAudioEls[uid] = el;
   }
   el.srcObject = stream;
-  // Também mostra vídeo se a call-overlay tiver o card do participante
+  
+  // Vídeo (se houver track de vídeo no stream)
+  var hasVideo = stream.getVideoTracks().length > 0;
   var vidEl = document.getElementById('call-remote-vid-' + uid);
-  if (vidEl) { vidEl.srcObject = stream; vidEl.style.display = 'block'; }
-  showToast('🔊 ' + (uid === _myCallId ? 'Você' : uid) + ' entrou na call', 'ok');
+  if (vidEl && hasVideo) {
+    vidEl.srcObject = stream;
+    vidEl.style.display = 'block';
+    vidEl.play().catch(e => console.warn('[WebRTC] Erro ao dar play no vídeo remoto:', e));
+  }
+  
+  showToast('🔊 ' + (uid === _myCallId ? 'Você' : uid) + ' transmitindo...', 'ok');
 }
 
 function _removeRemoteStream(uid) {
