@@ -18,7 +18,7 @@
 <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
 
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&amp;family=Share+Tech+Mono&amp;family=Rajdhani:wght@400;600;700&amp;family=Orbitron:wght@400;600;700;900&amp;family=Exo+2:wght@300;400;600;700&amp;family=Audiowide&amp;family=Major+Mono+Display&amp;family=Recursive:wght@400;700&amp;display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide/dist/umd/lucide.min.js"></script>
 
 <style>
 
@@ -4756,7 +4756,7 @@ function renderCustomOrigens() {
   var el = document.getElementById('origens-custom-list');
   if(!el) return;
   if(!data.customOrigens.length) {
-    el.innerHTML = '<div style="font-family:\\'Share Tech Mono\\',monospace;font-size:.62rem;color:rgba(200,205,225,.25);text-align:center;padding:20px 0"><div>Nenhuma origem customizada ainda.</div>' + (isMestre ? '<div style="opacity:.6;margin-top:4px">Clique em "+ Nova Origem" para criar.</div>' : '') + '</div>';
+    el.innerHTML = '<div style="font-family:&quot;Share Tech Mono&quot;,monospace;font-size:.62rem;color:rgba(200,205,225,.25);text-align:center;padding:20px 0"><div>Nenhuma origem customizada ainda.</div>' + (isMestre ? '<div style="opacity:.6;margin-top:4px">Clique em "+ Nova Origem" para criar.</div>' : '') + '</div>';
     return;
   }
   el.innerHTML = data.customOrigens.map(function(o) {
