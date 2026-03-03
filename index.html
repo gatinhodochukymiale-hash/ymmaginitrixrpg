@@ -8495,6 +8495,15 @@ function pwaDismiss() {
      FIREBASE AUTH + REALTIME DATABASE + WebRTC — Ymmaginitrix
      Projeto: ymaginity-rpg
 ════════════════════════════════════════════════════════════════════════ -->
+<script>
+// Captura erros globais para ajudar no debug do usuário
+window.onerror = function(msg, url, line, col, error) {
+  console.error('[Global Error]', msg, 'at', url, ':', line);
+  if (typeof showToast === 'function') showToast('✕ Erro crítico: ' + msg, 'err');
+  return false;
+};
+</script>
+
 <script type="module">
 import { initializeApp }            from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword,
@@ -8622,8 +8631,6 @@ async function _resolveGoogleProfile(fbUser) {
 async function _fbGoogleLogin() {
   _setGoogleBtns(true);
 
-  // Removida trava manual de domínios para permitir que o Firebase gerencie isso nativamente.
-  // Se houver erro de domínio, o catch abaixo tratará via _handleGoogleError.
   if (window.location.protocol === 'file:') {
     _setGoogleBtns(false);
     _showGoogleDomainHelp('localhost');
@@ -8631,11 +8638,12 @@ async function _fbGoogleLogin() {
   }
 
   try {
+    console.log('[Google] Iniciando signInWithPopup...');
     const result = await signInWithPopup(auth, gProvider);
+    console.log('[Google] Sucesso! Resolvendo perfil...');
     const profile = await _resolveGoogleProfile(result.user);
     _setGoogleBtns(false);
-    // Chama loginSuccess ANTES do onAuthStateChanged disparar
-    // para evitar duplo render (o onAuthStateChanged vai checar currentUser.id === fbUser.uid)
+    
     _setupPresence(result.user.uid, profile.username);
     loginSuccess(profile);
     _startRealtimeSync();
@@ -8644,22 +8652,14 @@ async function _fbGoogleLogin() {
 
   } catch(e) {
     _setGoogleBtns(false);
+    console.error('[Google] Erro capturado:', e.code, e.message);
 
     if (e.code === 'auth/unauthorized-domain') {
       _showGoogleDomainHelp(window.location.hostname);
-
-    } else if (e.code === 'auth/popup-blocked' || e.code === 'auth/cancelled-popup-request') {
-      showToast('🔄 Popup bloqueado — redirecionando...', 'warn');
-      try {
-        var rb = document.getElementById('google-redirect-banner');
-        if (rb) rb.style.display = 'flex';
-        try { sessionStorage.setItem('_gRedirect', '1'); } catch(_) {}
-        await signInWithRedirect(auth, gProvider);
-      } catch(re) { _handleGoogleError(re); }
-
+    } else if (e.code === 'auth/popup-blocked') {
+      showToast('🔄 Popup bloqueado pelo navegador!', 'err');
     } else if (e.code === 'auth/popup-closed-by-user') {
-      // silencioso
-
+      showToast('✕ Login cancelado pelo usuário', 'warn');
     } else {
       _handleGoogleError(e);
     }
