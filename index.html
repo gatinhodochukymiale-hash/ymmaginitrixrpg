@@ -8787,20 +8787,12 @@ window.auth             = auth;
 window.app              = app;
 window.db               = db;
 window._fbReady         = true;
-
-
-
-
 // Expõe para funções legadas
 window._fbSignIn        = _fbSignIn;
 window._fbSignUp        = _fbCreateUser;
 window._fbSignOut       = () => signOut(auth);
 window.doGoogleLogin    = _fbGoogleLogin;
 window._fbGoogleLogin   = _fbGoogleLogin;
-window.auth             = auth;
-window.app              = app;
-window.db               = db;
-window._fbReady         = true;
 window._googleLoginAttempts = 0;
 
 console.log('[Firebase] Pronto.');
