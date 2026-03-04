@@ -2416,11 +2416,12 @@ textarea{resize:vertical;min-height:72px;border-radius:var(--r-sm)}
   .roleta-left{flex:none;border-right:none;border-bottom:1px solid rgba(255,255,255,.06)}
   #roleta-canvas{width:220px!important;height:220px!important}
 }
+/* CORREÇÕES VISUAIS MOBILE */
+@media (max-width: 768px) { #user-bar { top: 8px !important; right: 8px !important; padding: 5px !important; border-radius: 50px !important; background: rgba(0,0,0,0.65) !important; backdrop-filter: blur(10px) !important; -webkit-backdrop-filter: blur(10px) !important; border: 1px solid rgba(255,255,255,0.1) !important; gap: 8px !important; align-items: center !important; display: flex !important; z-index: 10001 !important; max-width: calc(100vw - 16px); box-sizing: border-box; } .ub-av { width: 38px !important; height: 38px !important; flex-shrink: 0 !important; border-radius: 50% !important; overflow: hidden !important; border: 2px solid var(--c-accent) !important; } .ub-av img { width: 100% !important; height: 100% !important; object-fit: cover !important; } .ub-info { display: flex !important; flex-direction: column !important; gap: 1px !important; align-items: flex-start !important; color: white !important; margin-right: 5px; overflow: hidden; } .ub-name { font-size: 0.8rem !important; font-weight: 700 !important; line-height: 1.1 !important; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; max-width: 120px; } .ub-role { font-size: 0.65rem !important; text-transform: uppercase; color: var(--c-accent) !important; opacity: 0.9; font-weight: 600; } .ub-ctrls { display: flex !important; gap: 6px !important; } .ub-ctrls button { padding: 7px 12px !important; font-size: 0.75rem !important; background: rgba(255,255,255,0.1) !important; border: none !important; color: white !important; border-radius: 20px !important; cursor: pointer; font-weight: 700; } .ub-ctrls button:hover { background: var(--c-accent) !important; color: white !important; } }
 </style>
 <script id="ymm-seed" type="application/json">{"users":[],"data":{"campanhas":[],"players":[],"customItems":[],"customOrigens":[],"customHabilidades":[]},"chat":{"chat":[],"media":[],"rolls":[]},"live":{}}</script>
-<script>try{var _t=localStorage.getItem("ymm_theme");if(_t)document.body.className="theme-"+_t;}catch(e){}</script>
 </head>
-<body class="theme-crimson">
+<body>
 
 <!-- ===== TELA DE AUTH ===== -->
 <div id="auth-toast"></div>
@@ -8796,6 +8797,10 @@ window._fbSignUp        = _fbCreateUser;
 window._fbSignOut       = () => signOut(auth);
 window.doGoogleLogin    = _fbGoogleLogin;
 window._fbGoogleLogin   = _fbGoogleLogin;
+window.auth             = auth;
+window.app              = app;
+window.db               = db;
+window._fbReady         = true;
 window._googleLoginAttempts = 0;
 
 console.log('[Firebase] Pronto.');
