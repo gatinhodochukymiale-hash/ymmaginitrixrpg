@@ -1,10 +1,36 @@
 <html lang="pt-BR"><head>
 <style>
 /* ── CORREÇÃO AVATAR MOBILE ── */
+.ub-av {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 50% !important;
+    overflow: hidden !important;
+    flex-shrink: 0 !important;
+    border: 1.5px solid var(--c-border-r) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+.ub-av img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+}
+#user-bar {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 4px 10px !important;
+    max-width: calc(100vw - 20px) !important;
+}
+
+/* ── CORREÇÃO AVATAR MOBILE ── */
 .ub-av{width:32px!important;height:32px!important;border-radius:50%!important;overflow:hidden!important;flex-shrink:0!important;border:1.5px solid var(--c-border-r)!important;display:flex!important;align-items:center!important;justify-content:center!important}
 .ub-av img{width:100%!important;height:100%!important;object-fit:cover!important}
 #user-bar{display:flex!important;align-items:center!important;gap:8px!important;padding:4px 10px!important;max-width:calc(100vw - 20px)!important}
 </style>
+
 
   --c-bg:       #07070f;
   --c-bg2:      #0d0d1a;
@@ -39,6 +65,10 @@
 
 
 
+
+
+
+
 /* ══ TEMAS ══ */
 body.theme-crimson{
   --c-bg:#07070f;--c-bg2:#0d0d1a;--c-bg3:#111122;
@@ -68,5 +98,3 @@ body.theme-phantom{
   --c-bg:#08020f;--c-bg2:#100520;--c-bg3:#160830;
   --c-accent:#cc44ff;--c-red:#9922cc;--c-red2:#cc44ff;
   --c-border-r:rgba(160,40,220,.32);--c-red-glow:rgba(160,40,220,.22);
-  --c-gold:#f0aaff;--c-text:#e0d0f0;
-  --t-grad1:radial-gradient(ellipse 90% 60% at 15% -5%,rgba(120,10,200,.16) 0%,transparent 55%);
