@@ -9317,7 +9317,9 @@ function _attachRemoteStream(uid, stream) {
 
 function _removeRemoteStream(uid) {
   var el = _remoteAudioEls[uid];
-  if (el) { el.srcObject = null; el.remove(); delete _remoteAudioEls[uid]; }// ── Hook: quando mic/cam é ativado, adiciona trilha nos peers existentes ──
+  if (el) { el.srcObject = null; el.remove(); delete _remoteAudioEls[uid]; }
+}
+// ── Hook: quando mic/cam é ativado, adiciona trilha nos peers existentes ──
 window._rtcAddMediaTrack = function(stream) {
   if (!stream) return;
   Object.entries(_peers).forEach(([uid, pc]) => {
