@@ -5816,7 +5816,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     <div style="display:flex;gap:8px;align-items:center">
       <!-- Permissões (só mestre vê) -->
       <button class="call-ctrl-btn" id="call-perm-btn" style="width:34px;height:34px;font-size:.75rem;display:none" onclick="toggleCallPanel('perm')" title="Permissões">🔑</button>
-      <button style="background:none;border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.4);border-radius:8px;padding:5px 12px;font-family:'Share Tech Mono',monospace;font-size:.6rem;cursor:pointer;transition:all .14s" onclick="closeCallOverlay()">✕ MINIMIZAR</button>
+      <button style="background:none;border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.4);border-radius:8px;padding:5px 12px;font-family:'Share Tech Mono',monospace;font-size:.6rem;cursor:pointer;transition:all .14s" onclick="minimizeCallToFloat()">⬇ MINIMIZAR</button>
     </div>
   </div>
   <!-- Banner aviso file:// -->
@@ -5887,7 +5887,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       <button class="call-music-btn" onclick="callLoadYoutube()">▶ TOCAR</button>
     </div>
     <div id="call-yt-wrap">
-      <iframe id="call-yt-iframe" width="100%" height="120" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen=""></iframe>
+      <iframe id="call-yt-iframe" width="100%" height="120" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+      <div id="call-yt-notice" style="display:none;margin-top:6px;padding:7px 10px;background:rgba(220,140,0,.13);border:1px solid rgba(220,140,0,.3);border-radius:7px;font-family:'Share Tech Mono',monospace;font-size:.5rem;color:rgba(255,200,80,.8);line-height:1.6">
+        ⚠ O YouTube pode bloquear embed em mobile.<br>
+        Use o botão <b>▶ ABRIR NO YT</b> abaixo para ouvir no app e volte aqui.
+      </div>
+      <button id="call-yt-open-btn" style="display:none;margin-top:6px;width:100%;padding:8px;background:rgba(255,0,0,.15);border:1px solid rgba(255,0,0,.35);border-radius:7px;color:rgba(255,120,120,.9);font-family:'Share Tech Mono',monospace;font-size:.56rem;cursor:pointer" onclick="callOpenYoutubeExternal()">▶ ABRIR NO YOUTUBE</button>
     </div>
     <div class="call-music-sep">── OU ──</div>
     <!-- Arquivo local -->
@@ -6176,6 +6181,54 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 <div id="notif"></div>
 
 <!-- ── EMOJI REACTIONS DA CALL ── -->
+<!-- ══ CALL FLUTUANTE (PiP) ══ -->
+<div id="call-pip-bubble" style="display:none;position:fixed;bottom:90px;right:16px;z-index:9800;
+  width:62px;height:62px;border-radius:50%;
+  background:radial-gradient(circle at 40% 35%,rgba(0,180,80,.35),rgba(0,40,20,.95));
+  border:2px solid rgba(0,220,100,.5);
+  box-shadow:0 4px 20px rgba(0,0,0,.7),0 0 0 0 rgba(0,220,100,.4);
+  animation:pipPulse 2s infinite;
+  cursor:pointer;display:none;
+  align-items:center;justify-content:center;flex-direction:column;gap:2px;
+  touch-action:none;user-select:none" onclick="maximizeCallFromFloat()">
+  <span style="font-size:1.3rem">📞</span>
+  <span id="call-pip-timer" style="font-family:'Share Tech Mono',monospace;font-size:.4rem;color:rgba(100,255,180,.9);letter-spacing:.05em">00:00</span>
+</div>
+<style>
+@keyframes pipPulse{0%,100%{box-shadow:0 4px 20px rgba(0,0,0,.7),0 0 0 0 rgba(0,220,100,.5)}50%{box-shadow:0 4px 20px rgba(0,0,0,.7),0 0 0 8px rgba(0,220,100,0)}}
+#call-pip-bubble.show{display:flex!important}
+</style>
+<script>
+// Arrastar o PiP
+(function(){
+  var pip, dragging=false, ox=0, oy=0, moved=false;
+  document.addEventListener('DOMContentLoaded',function(){
+    pip=document.getElementById('call-pip-bubble');
+    if(!pip)return;
+    pip.addEventListener('touchstart',function(e){
+      dragging=true; moved=false;
+      var t=e.touches[0];
+      var r=pip.getBoundingClientRect();
+      ox=t.clientX-r.left; oy=t.clientY-r.top;
+      pip.style.transition='none';
+    },{passive:true});
+    document.addEventListener('touchmove',function(e){
+      if(!dragging||!pip)return;
+      moved=true;
+      var t=e.touches[0];
+      var x=t.clientX-ox, y=t.clientY-oy;
+      x=Math.max(0,Math.min(window.innerWidth-pip.offsetWidth,x));
+      y=Math.max(0,Math.min(window.innerHeight-pip.offsetHeight,y));
+      pip.style.right='auto'; pip.style.bottom='auto';
+      pip.style.left=x+'px'; pip.style.top=y+'px';
+    },{passive:true});
+    document.addEventListener('touchend',function(){
+      if(dragging){ pip.style.transition=''; dragging=false; }
+    });
+  });
+})();
+</script>
+
 <div id="call-reactions-bar">
   <span class="crb-emoji" onclick="sendCallReaction('👍')" title="Legal">👍</span>
   <span class="crb-emoji" onclick="sendCallReaction('❤️')" title="Coração">❤️</span>
@@ -7747,29 +7800,41 @@ function renderCatalogo() {
     return;
   }
 
-  var statusLabel = {planejando:'◉ Planejando',ativa:'● Ativa',pausada:'◐ Pausada',concluida:'○ Concluída'};
+  var statusLabel  = {planejando:'◉ Planejando', ativa:'● Ativa', pausada:'◐ Pausada', concluida:'○ Concluída'};
+  var statusClass  = {planejando:'ccb-planejando', ativa:'ccb-ativa', pausada:'ccb-pausada', concluida:'ccb-concluida'};
+  var statusStripe = {planejando:'st-planejando', ativa:'st-ativa', pausada:'st-pausada', concluida:'st-concluida'};
   el.innerHTML = '<div class="grid2">' + items.map(function(c) {
-    var nPlayers   = (data.players || []).filter(function(p){ return p.campanha === c.id; }).length;
-    var isMine     = currentUser && c.mestreId === currentUser.id;
+    var nPlayers     = (data.players || []).filter(function(p){ return p.campanha === c.id; }).length;
+    var isMine       = currentUser && c.mestreId === currentUser.id;
     var isLocalOwner = !c.mestreId && currentUser && (currentUser.role==='mestre'||currentUser.role==='ambos');
-    var canEdit    = isMine || isLocalOwner;
-    var mestreDisp = c.mestreUsername || c.mestre || '—';
-    var badgeTxt   = isMine ? '🗡 Sua Campanha' : (c.mestreUsername ? '👤 ' + mestreDisp : '👤 ' + mestreDisp);
-    var badgeCls   = isMine ? 'cc-owner-badge' : 'cc-owner-badge other';
-    return '<div class="campaign-card' + (isMine ? ' mine-card' : '') + '">' +
-      (c.banner ? '<div style="height:70px;margin:-16px -16px 12px;overflow:hidden;border-radius:2px 2px 0 0"><img src="' + c.banner + '" style="width:100%;height:100%;object-fit:cover;filter:brightness(.7)"></div>' : '') +
-      '<div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:4px"><div class="cc-name" style="flex:1">' + _esc(c.nome) + '</div><span class="' + badgeCls + '">' + badgeTxt + '</span></div>' +
-      '<div class="cc-meta">MESTRE: ' + _esc(mestreDisp) + ' &nbsp;|&nbsp; ' + (c.criadaEm||'—') + ' &nbsp;|&nbsp; ' + (statusLabel[c.status]||c.status||'—') + '</div>' +
-      '<div class="cc-desc">' + (_esc(c.desc) || '<span style="opacity:.4">Sem descrição.</span>') + '</div>' +
-      '<div style="margin-bottom:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">' +
-        '<span class="tag blue">' + nPlayers + ' player(s)</span>' +
-        (c.senhaSet ? '<span class="camp-lock">🔒 Senha</span>' : '<span class="camp-lock" style="background:rgba(0,180,70,.06);border-color:rgba(0,200,70,.2);color:rgba(80,220,140,.75)">🔓 Aberta</span>') +
-      '</div>' +
-      '<div class="cc-actions">' +
-        '<button class="btn btn-small btn-primary" onclick="tryEnterCampanha(\'' + c.id + '\')">👁 Ver</button>' +
-        (canEdit ? '<button class="btn btn-small btn-blue" onclick="editCampanha(\'' + c.id + '\')">✏ Editar</button><button class="btn btn-small btn-danger" onclick="deleteCampanha(\'' + c.id + '\')">✕ Excluir</button>' : '') +
-      '</div>' +
-    '</div>';
+    var canEdit      = isMine || isLocalOwner;
+    var mestreDisp   = c.mestreUsername || c.mestre || '—';
+    var st           = c.status || 'planejando';
+    var bannerHtml   = c.banner
+      ? '<div class="cc-banner"><img src="'+c.banner+'"><div class="cc-status-stripe '+(statusStripe[st]||'st-planejando')+'"></div></div>'
+      : '<div class="cc-banner"><div class="cc-banner-empty">🗺</div><div class="cc-status-stripe '+(statusStripe[st]||'st-planejando')+'"></div></div>';
+    return '<div class="campaign-card mine-card">'
+      + bannerHtml
+      + '<div class="cc-inner">'
+      + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">'
+      + '<div class="cc-name">'+_esc(c.nome)+'</div>'
+      + '<span class="cc-status-badge '+(statusClass[st]||'ccb-planejando')+'">'+(statusLabel[st]||st)+'</span>'
+      + '</div>'
+      + '<div class="cc-mestre">'+_esc(mestreDisp)+(c.criadaEm?' &nbsp;·&nbsp; '+c.criadaEm:'')+'</div>'
+      + (isMine ? '<div style="font-family:\'Share Tech Mono\',monospace;font-size:.48rem;color:var(--c-accent);letter-spacing:.08em;margin-bottom:4px">🗡 SUA CAMPANHA</div>' : '')
+      + '<div class="cc-desc">'+(_esc(c.desc)||'<span style="opacity:.3">Sem descrição.</span>')+'</div>'
+      + '<div class="cc-actions-row">'
+      + '<button class="btn btn-small btn-primary" onclick="event.stopPropagation();tryEnterCampanha(\''+c.id+'\')">👁 Ver</button>'
+      + (canEdit ? '<button class="btn btn-small btn-blue" onclick="event.stopPropagation();editCampanha(\''+c.id+'\')">✏ Editar</button>'
+                 + '<button class="btn btn-small btn-danger" onclick="event.stopPropagation();deleteCampanha(\''+c.id+'\')">✕ Excluir</button>' : '')
+      + '</div>'
+      + '</div>'
+      + '<div class="cc-footer">'
+      + '<span class="cc-stat-pill">⚔ '+nPlayers+' player'+(nPlayers!==1?'s':'')+'</span>'
+      + (c.senhaSet ? '<span class="cc-stat-pill">🔒 Senha</span>' : '<span class="cc-stat-pill" style="color:rgba(80,220,140,.7);border-color:rgba(0,200,70,.2)">🔓 Aberta</span>')
+      + (c.criadaEm ? '<span class="cc-stat-pill" style="margin-left:auto">📅 '+c.criadaEm+'</span>' : '')
+      + '</div>'
+      + '</div>';
   }).join('') + '</div>';
 }
 
@@ -10777,7 +10842,17 @@ function callToggleCam() {
     .catch(function(err){
       console.warn('[Call] Cam error:',err);
       callState.camState='denied'; callState.camOn=false; _syncCamBtn();
-      showToast('✕ '+_mediaErrMsg(err,'📷 Câmera'),'err');
+      if(err.name==='NotAllowedError'||err.name==='PermissionDeniedError'){
+        showToast('📷 Câmera bloqueada — toque no 🔒 na barra de endereço e permita câmera','err');
+        // Mostra instrução visual
+        var warn=document.getElementById('call-file-warn');
+        if(warn){
+          warn.style.display='block';
+          warn.innerHTML='📷 <b>Permissão de câmera negada.</b><br>Toque no ícone 🔒 (ou ⚙) na barra de endereço do navegador → <b>Permissões</b> → ative <b>Câmera</b> → recarregue a página.';
+        }
+      } else {
+        showToast('✕ '+_mediaErrMsg(err,'📷 Câmera'),'err');
+      }
     });
 }
 
@@ -10793,7 +10868,11 @@ function callToggleScreen() {
   }
   if (!navigator.mediaDevices || typeof navigator.mediaDevices.getDisplayMedia!=='function') {
     var isMob=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    showToast(isMob?'📱 Compartilhamento de tela não suportado em mobile':'⚠ Navegador não suporta compartilhamento de tela','err');
+    if(isMob){
+      showToast('📱 No Android use o Chrome → menu ⋮ → "Transmitir" para compartilhar tela','warn');
+    } else {
+      showToast('⚠ Navegador não suporta compartilhamento de tela','err');
+    }
     return;
   }
   callState.screenState='requesting'; _syncScreenBtn('requesting');
@@ -10904,6 +10983,47 @@ function callSetMusicVol(el) {
   var audio=document.getElementById('call-local-audio'); if(audio) audio.volume=val/100;
 }
 
+function minimizeCallToFloat() {
+  closeCallOverlay();
+  if (!callState.active) return;
+  var pip = document.getElementById('call-pip-bubble');
+  if (pip) pip.classList.add('show');
+  // Sincroniza timer do pip
+  if (!window._pipTimerInterval) {
+    window._pipTimerInterval = setInterval(function(){
+      var el = document.getElementById('call-pip-timer');
+      if (!el) return;
+      var m = Math.floor(callState.timerSecs/60), s = callState.timerSecs%60;
+      el.textContent = (m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+    }, 1000);
+  }
+  showToast('📞 Call minimizada — toque no ícone verde para voltar','ok');
+}
+
+function maximizeCallFromFloat() {
+  var pip = document.getElementById('call-pip-bubble');
+  if (pip) pip.classList.remove('show');
+  clearInterval(window._pipTimerInterval); window._pipTimerInterval = null;
+  var _cov = document.getElementById('call-overlay');
+  if (_cov) _cov.classList.add('open');
+}
+
+// Hook: esconde pip quando call terminar — injeta depois do load para não conflitar com módulo Firebase
+window.addEventListener('load', function() {
+  var _prevEndCall = window.endCall;
+  window.endCall = function() {
+    var pip = document.getElementById('call-pip-bubble');
+    if (pip) pip.classList.remove('show');
+    clearInterval(window._pipTimerInterval); window._pipTimerInterval = null;
+    if (typeof _prevEndCall === 'function') _prevEndCall();
+  };
+});
+
+function callOpenYoutubeExternal() {
+  var url = (document.getElementById('call-yt-input')||{}).value||'';
+  if (url) { window.open(url, '_blank'); }
+}
+
 function callLoadYoutube() {
   var url=(document.getElementById('call-yt-input')||{}).value||''; url=url.trim();
   if(!url) return;
@@ -10911,8 +11031,16 @@ function callLoadYoutube() {
   if(!id){showToast('⚠ URL inválida do YouTube','warn');return;}
   var wrap=document.getElementById('call-yt-wrap');
   var iframe=document.getElementById('call-yt-iframe');
-  iframe.src='https://www.youtube.com/embed/'+id+'?autoplay=1&loop=1&playlist='+id+'&rel=0&modestbranding=1';
+  var notice=document.getElementById('call-yt-notice');
+  var openBtn=document.getElementById('call-yt-open-btn');
+  iframe.src='https://www.youtube-nocookie.com/embed/'+id+'?autoplay=1&loop=1&playlist='+id+'&rel=0&modestbranding=1';
   wrap.style.display='block';
+  // Em mobile o iframe costuma ser bloqueado — mostra aviso e botão externo
+  var isMob=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if(isMob){
+    if(notice) notice.style.display='block';
+    if(openBtn){ openBtn.style.display='block'; openBtn.onclick=function(){ window.open(url,'_blank'); }; }
+  }
   showToast('🎬 YouTube carregado','ok');
 }
 
