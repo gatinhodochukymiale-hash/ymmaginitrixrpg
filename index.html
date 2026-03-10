@@ -7736,12 +7736,27 @@ function switchCampTab(tab) {
     btn.classList.toggle('active', active);
     pane.style.display = active ? '' : 'none';
   });
-  // Esconde botão "Nova Campanha" no catálogo (sem sentido criar ali)
   var novaBtn = document.getElementById('btn-nova-campanha');
   if (novaBtn) novaBtn.style.display = tab === 'catalogo' ? 'none' : '';
   if (tab === 'catalogo') {
+    // Mostra loading enquanto espera
+    var listEl = document.getElementById('catalogo-list');
+    if (listEl && _allCatalogItems.length === 0) {
+      listEl.innerHTML = '<div style="text-align:center;padding:30px 0;font-family:\'Share Tech Mono\',monospace;font-size:.6rem;color:rgba(200,205,225,.3)">// carregando campanhas...</div>';
+    }
     _buildCatalogo();
     renderCatalogo();
+    // Força re-busca no Firebase se disponível
+    if (window.db && window._ref && window._onValue) {
+      try {
+        window._onValue(window._ref(window.db, 'globalCampaigns'), function(snap) {
+          _catalogoCampanhas = [];
+          if (snap.exists()) snap.forEach(function(child){ _catalogoCampanhas.push(child.val()); });
+          _buildCatalogo();
+          renderCatalogo();
+        });
+      } catch(e) {}
+    }
   }
 }
 
@@ -12862,7 +12877,8 @@ document.dispatchEvent(new Event('ymm-fb-ready'));
 
 window._fbPublishCampanha = async function(c) {
   try {
-    // Salva apenas dados públicos (sem senha em plain text)
+    // Banner em base64 pode ser enorme (>1MB) e o Firebase rejeita
+    // Enviamos apenas uma flag se tem banner, não o dado em si
     var pub = {
       id: c.id,
       nome: c.nome,
@@ -12871,12 +12887,23 @@ window._fbPublishCampanha = async function(c) {
       mestreUsername: c.mestreUsername || null,
       desc: c.desc || '',
       status: c.status || 'planejando',
-      banner: c.banner || '',
+      banner: '',          // não envia base64 para o Firebase
+      hasBanner: !!(c.banner && c.banner.length > 10),
       senhaSet: !!c.senhaSet,
       criadaEm: c.criadaEm || ''
     };
     await set(ref(db, 'globalCampaigns/' + c.id), pub);
-  } catch(e) { /* silencioso — local funciona mesmo sem Firebase */ }
+    console.log('[Firebase] Campanha publicada no catálogo global:', c.nome);
+  } catch(e) {
+    console.warn('[Firebase] Erro ao publicar campanha:', e.code || e.message);
+    if (typeof showToast === 'function') {
+      if (e.code === 'PERMISSION_DENIED') {
+        showToast('⚠ Firebase: permissão negada. Verifique se está logado.', 'err');
+      } else {
+        showToast('⚠ Erro ao publicar no catálogo global: ' + (e.code || e.message), 'warn');
+      }
+    }
+  }
 };
 
 window._fbDeleteCampanha = async function(id) {
@@ -12885,7 +12912,7 @@ window._fbDeleteCampanha = async function(id) {
   } catch(e) {}
 };
 
-// Escuta o catálogo global em tempo real
+// Escuta o catálogo global em tempo real — SEMPRE atualiza, independente da aba visível
 const gcRef = ref(db, 'globalCampaigns');
 onValue(gcRef, function(snap) {
   _catalogoCampanhas = [];
@@ -12894,12 +12921,16 @@ onValue(gcRef, function(snap) {
       _catalogoCampanhas.push(child.val());
     });
   }
-  // Se o catálogo estiver visível, atualiza
+  // Sempre reconstrói o cache
+  _buildCatalogo();
+  // Atualiza UI se a aba estiver visível
   var pane = document.getElementById('camp-pane-catalogo');
   if (pane && pane.style.display !== 'none') {
-    _buildCatalogo();
     renderCatalogo();
   }
+  // Atualiza contador mesmo sem a aba aberta
+  var countEl = document.getElementById('cat-count');
+  if (countEl) countEl.textContent = '// ' + _catalogoCampanhas.length + ' campanha(s) encontrada(s)';
 });
 
 // ────────────────────────────────────────────────────────────────────────
