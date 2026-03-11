@@ -388,7 +388,7 @@ body::after{
 /* ── LAYOUT MOBILE (base — se aplica a tudo abaixo de 769px) ── */
 #app{display:block;min-height:100vh;position:relative;z-index:1}
 #sidebar{display:none}
-#main{margin-left:0;padding:12px 12px 80px;min-height:100vh;overflow-x:hidden;max-width:100vw}
+#main{margin-left:0;padding:68px 12px 80px;min-height:100vh;overflow-x:hidden;max-width:100vw}
 
 /* Topbar compacta no mobile */
 .topbar{
@@ -6403,6 +6403,11 @@ function loginSuccess(user) {
   renderChatTabs();
   renderChatTabsOv();
   setTimeout(function(){ if(window.lucide) lucide.createIcons(); }, 100);
+  // Força atualização do catálogo global após login (Firebase pode ter respondido antes do auth)
+  setTimeout(function() {
+    _buildCatalogo();
+    renderCatalogo();
+  }, 1500);
   // Show permissions request on first use
   setTimeout(function(){ showPermsModal(); }, 600);
 }
@@ -7746,17 +7751,28 @@ function switchCampTab(tab) {
     }
     _buildCatalogo();
     renderCatalogo();
-    // Força re-busca no Firebase se disponível
-    if (window.db && window._ref && window._onValue) {
+    // Força re-busca no Firebase se disponível e desliga listener anterior
+    if (window.db && window._ref && window._onValue && window._off) {
       try {
-        window._onValue(window._ref(window.db, 'globalCampaigns'), function(snap) {
+        var gcTabRef = window._ref(window.db, 'globalCampaigns');
+        // Remove listener anterior para evitar duplicados
+        if (window._gcTabListener) {
+          try { window._off(gcTabRef, 'value', window._gcTabListener); } catch(e) {}
+        }
+        window._gcTabListener = function(snap) {
           _catalogoCampanhas = [];
           if (snap.exists()) snap.forEach(function(child){ _catalogoCampanhas.push(child.val()); });
           _buildCatalogo();
           renderCatalogo();
-        });
-      } catch(e) {}
+        };
+        window._onValue(gcTabRef, window._gcTabListener);
+      } catch(e) { console.warn('[Catalogo] erro ao buscar Firebase:', e); }
     }
+    // Fallback: retry após 2s caso Firebase demore
+    setTimeout(function() {
+      _buildCatalogo();
+      renderCatalogo();
+    }, 2000);
   }
 }
 
@@ -7922,8 +7938,10 @@ function renderCampanhas() {
 }
 
 function tryEnterCampanha(id) {
-  var c = data.campanhas.find(function(x){ return x.id===id; });
-  if (!c) { showToast('⚠ Campanha não encontrada localmente', 'warn'); return; }
+  // Busca primeiro local, depois no cache do catálogo Firebase
+  var c = data.campanhas.find(function(x){ return x.id===id; })
+       || _allCatalogItems.find(function(x){ return x.id===id; });
+  if (!c) { showToast('⚠ Campanha não encontrada', 'warn'); return; }
   if (c.senhaSet && !isMestreDa(c)) {
     var s = prompt('🔒 Senha da campanha:');
     if (!s) return;
@@ -12922,13 +12940,10 @@ onValue(gcRef, function(snap) {
     });
   }
   // Sempre reconstrói o cache
-  _buildCatalogo();
-  // Atualiza UI se a aba estiver visível
-  var pane = document.getElementById('camp-pane-catalogo');
-  if (pane && pane.style.display !== 'none') {
-    renderCatalogo();
-  }
-  // Atualiza contador mesmo sem a aba aberta
+  if (typeof _buildCatalogo === 'function') _buildCatalogo();
+  // Sempre atualiza o catálogo (renderizar quando hidden é inócuo e garante dado fresco)
+  if (typeof renderCatalogo === 'function') renderCatalogo();
+  // Atualiza contador
   var countEl = document.getElementById('cat-count');
   if (countEl) countEl.textContent = '// ' + _catalogoCampanhas.length + ' campanha(s) encontrada(s)';
 });
