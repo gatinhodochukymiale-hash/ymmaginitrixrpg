@@ -169,6 +169,8 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&family=Orbitron:wght@400;600;700;900&family=Exo+2:wght@300;400;600;700&family=Audiowide&family=Major+Mono+Display&family=Recursive:wght@400;700&family=Cinzel:wght@400;600;700&family=Black+Ops+One&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/lucide/dist/umd/lucide.min.js"></script>
+<!-- Three.js — motor 3D usado pela Mesa 3D (tabletop de mapas/tokens dentro da call) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <!-- YouTube IFrame API — permite controlar de verdade o áudio do YouTube tocado
      no painel de Áudio Ambiente (play/pause/stop/volume/loop), que antes só
      mexiam no player de arquivo local e não tinham nenhum efeito sobre o
@@ -3040,6 +3042,92 @@ textarea{resize:vertical;min-height:72px;border-radius:var(--r-sm)}
 .csv-btn.muted{ color:#f23f42; }
 #csv-vol-slider{ width:80px; accent-color:#3ba55d; cursor:pointer; }
 .call-controls{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;background:#1e1f22;border-top:1px solid rgba(255,255,255,.06);flex-shrink:0;flex-wrap:wrap;position:relative;z-index:2}
+
+/* ── MESA 3D (tabletop de mapas/tokens) ── */
+#tabletop3d-overlay{
+  position:fixed; inset:0; z-index:99000; display:none;
+  background:#0a0b0d; font-family:'Share Tech Mono',monospace;
+}
+#tabletop3d-overlay.open{ display:block; }
+#tabletop3d-canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; cursor:grab; }
+#tabletop3d-canvas.dragging-cam{ cursor:grabbing; }
+#tabletop3d-canvas.dragging-token{ cursor:move; }
+.tt3d-topbar{
+  position:absolute; top:0; left:0; right:0; z-index:2;
+  display:flex; align-items:center; gap:12px; padding:10px 14px;
+  background:linear-gradient(180deg,rgba(10,10,14,.92),transparent);
+  pointer-events:none;
+}
+.tt3d-topbar > *{ pointer-events:auto; }
+.tt3d-title{ color:#7ee0ff; font-weight:700; letter-spacing:.1em; font-size:.85rem; text-shadow:0 0 12px rgba(126,224,255,.5); }
+.tt3d-scene-picker{ display:flex; align-items:center; gap:6px; }
+.tt3d-scene-picker select{
+  background:rgba(20,20,26,.9); color:#fff; border:1px solid rgba(255,255,255,.15);
+  border-radius:7px; padding:7px 10px; font-family:inherit; font-size:.72rem; max-width:180px;
+}
+.tt3d-icon-btn{
+  background:rgba(20,20,26,.9); border:1px solid rgba(255,255,255,.15); color:#fff;
+  border-radius:7px; width:30px; height:30px; cursor:pointer; font-size:.85rem;
+  display:flex; align-items:center; justify-content:center; transition:all .15s;
+}
+.tt3d-icon-btn:hover{ background:rgba(255,255,255,.12); }
+.tt3d-close{ margin-left:auto; color:#ff6767; }
+.tt3d-sidebar{
+  position:absolute; top:56px; right:12px; bottom:12px; z-index:2; width:260px;
+  background:rgba(14,14,18,.88); border:1px solid rgba(255,255,255,.1); border-radius:12px;
+  padding:14px; overflow-y:auto; backdrop-filter:blur(6px);
+  transition:transform .2s ease;
+}
+.tt3d-sidebar.hidden{ transform:translateX(290px); }
+.tt3d-sidebar-toggle{
+  position:absolute; top:64px; right:284px; z-index:3;
+  background:rgba(14,14,18,.88); border:1px solid rgba(255,255,255,.1); color:#fff;
+  width:26px; height:40px; border-radius:8px; cursor:pointer; transition:right .2s ease;
+}
+.tt3d-sidebar.hidden ~ .tt3d-sidebar-toggle, .tt3d-sidebar-toggle.sidebar-hidden{ right:6px; }
+.tt3d-sec{ margin-bottom:18px; padding-bottom:14px; border-bottom:1px dashed rgba(255,255,255,.1); }
+.tt3d-sec:last-child{ border-bottom:none; }
+.tt3d-sec-title{ color:#fff; font-size:.72rem; font-weight:700; margin-bottom:8px; letter-spacing:.04em; }
+.tt3d-hint{ font-size:.58rem; color:rgba(255,255,255,.4); line-height:1.5; margin:6px 0; }
+.tt3d-file-btn{
+  display:block; text-align:center; background:linear-gradient(135deg,#1a5,#083); color:#fff;
+  border-radius:8px; padding:9px; font-size:.68rem; cursor:pointer; font-weight:600;
+}
+.tt3d-row{ display:flex; align-items:center; gap:6px; font-size:.66rem; color:rgba(255,255,255,.75); margin-top:8px; }
+.tt3d-row input[type="range"]{ flex:1; }
+.tt3d-btn-primary{
+  width:100%; background:linear-gradient(135deg,#a11,#611); color:#fff; border:none;
+  border-radius:8px; padding:9px; font-size:.68rem; font-weight:700; cursor:pointer; font-family:inherit;
+}
+.tt3d-btn-sec{
+  background:rgba(255,255,255,.08); color:#fff; border:1px solid rgba(255,255,255,.12);
+  border-radius:8px; padding:9px 12px; font-size:.66rem; cursor:pointer; font-family:inherit; width:100%;
+}
+.tt3d-btn-danger{ background:rgba(200,30,30,.25); border:1px solid rgba(255,90,90,.4); color:#ff8f8f; border-radius:8px; padding:9px 12px; cursor:pointer; font-family:inherit; }
+.tt3d-token-list{ display:flex; flex-direction:column; gap:5px; margin-top:10px; max-height:220px; overflow-y:auto; }
+.tt3d-token-item{
+  display:flex; align-items:center; gap:8px; background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.08); border-radius:7px; padding:6px 8px; font-size:.64rem; cursor:pointer;
+}
+.tt3d-token-item:hover{ background:rgba(255,255,255,.1); }
+.tt3d-token-swatch{ width:16px; height:16px; border-radius:50%; flex-shrink:0; border:1px solid rgba(255,255,255,.3); }
+.tt3d-token-editor{
+  position:absolute; z-index:5; top:50%; left:50%; transform:translate(-50%,-50%);
+  background:rgba(16,16,20,.97); border:1px solid rgba(255,255,255,.15); border-radius:12px;
+  padding:16px; width:260px; box-shadow:0 20px 60px rgba(0,0,0,.6);
+}
+.tt3d-token-editor input[type="text"]{
+  width:100%; box-sizing:border-box; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.15);
+  border-radius:7px; padding:8px 10px; color:#fff; font-family:inherit; font-size:.7rem; margin-top:8px;
+}
+.tt3d-loading{
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:6;
+  color:#fff; font-size:.85rem; background:rgba(0,0,0,.6); padding:14px 22px; border-radius:10px;
+}
+@media (max-width:640px){
+  .tt3d-sidebar{ width:200px; }
+  .tt3d-sidebar-toggle{ right:224px; }
+}
 .call-ctrl-group{display:flex;flex-direction:column;align-items:center;gap:3px}
 .call-ctrl-btn{width:44px;height:44px;border-radius:50%;border:none;background:#2b2d31;color:#f2f3f5;display:flex;align-items:center;justify-content:center;font-size:1.05rem;cursor:pointer;transition:all .12s;-webkit-tap-highlight-color:transparent}
 .call-ctrl-btn:hover{background:#35373c;transform:none}
@@ -7508,6 +7596,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       <button class="call-ctrl-btn" id="ctrl-screen" onclick="callToggleScreen()" title="Compartilhar tela">🖥</button>
       <button class="call-ctrl-chevron" onclick="toggleScreenShareMenu()" title="Opções de compartilhamento">▾</button>
     </div>
+    <button class="call-ctrl-btn" id="ctrl-tabletop" onclick="openTabletop3D()" title="Mesa 3D — mapas e tokens" style="color:#7ee0ff">🗺️</button>
     <div class="call-more-wrap">
       <div class="call-more-menu" id="screen-share-menu">
         <div class="call-more-menu-item" onclick="toggleScreenShareMenu();callToggleScreen(false)"><span class="cmi-ic">🖥</span> Compartilhar sem áudio</div>
@@ -7517,6 +7606,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     <div class="call-more-wrap">
       <button class="call-ctrl-btn" id="ctrl-more" onclick="toggleCallMoreMenu()" title="Mais opções">⋯</button>
       <div class="call-more-menu" id="call-more-menu">
+        <div class="call-more-menu-item" onclick="toggleCallMoreMenu();openTabletop3D()"><span class="cmi-ic">🗺️</span> Mesa 3D (mapas e tokens)</div>
         <div class="call-more-menu-item" onclick="toggleCallMoreMenu();toggleCallPanel('music')"><span class="cmi-ic">🎵</span> Áudio ambiente</div>
         <div class="call-more-menu-item" onclick="toggleCallMoreMenu();toggleSoundboard()"><span class="cmi-ic">🥁</span> Soundboard</div>
         <div class="call-more-menu-item" onclick="toggleCallMoreMenu();toggleCallReactions()"><span class="cmi-ic">😄</span> Reações</div>
@@ -7526,6 +7616,77 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       </div>
     </div>
     <button class="call-end-btn" onclick="endCall()" title="Encerrar call">📵</button>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       MESA 3D — mapas, cenas e tokens, tudo em 3D e sincronizado ao vivo
+       entre todo mundo na campanha. Ver bloco JS grande "TABLETOP 3D"
+       mais abaixo pra entender a arquitetura completa (Three.js puro via
+       CDN, sem framework — controles de câmera escritos na mão pra não
+       depender de módulos extras que podem falhar de carregar).
+       ════════════════════════════════════════════════════════════════ -->
+  <div id="tabletop3d-overlay">
+    <canvas id="tabletop3d-canvas"></canvas>
+
+    <div class="tt3d-topbar">
+      <div class="tt3d-scene-picker">
+        <select id="tt3d-scene-select" onchange="tt3dSwitchScene(this.value)"></select>
+        <button class="tt3d-icon-btn" id="tt3d-btn-newscene" onclick="tt3dNewScene()" title="Nova cena">➕</button>
+        <button class="tt3d-icon-btn" id="tt3d-btn-renamescene" onclick="tt3dRenameScene()" title="Renomear cena">✏️</button>
+        <button class="tt3d-icon-btn" id="tt3d-btn-delscene" onclick="tt3dDeleteScene()" title="Excluir cena">🗑️</button>
+      </div>
+      <div class="tt3d-title">🗺️ MESA 3D</div>
+      <button class="tt3d-icon-btn tt3d-close" onclick="closeTabletop3D()" title="Fechar (a call continua)">✕</button>
+    </div>
+
+    <div class="tt3d-sidebar" id="tt3d-sidebar">
+      <div class="tt3d-sec" id="tt3d-sec-map">
+        <div class="tt3d-sec-title">🖼️ Mapa</div>
+        <label class="tt3d-file-btn">
+          📥 Importar imagem de mapa
+          <input type="file" accept="image/*" id="tt3d-map-input" onchange="tt3dImportMap(this.files[0])" style="display:none">
+        </label>
+        <p class="tt3d-hint">Funciona com qualquer app que exporte imagem (PNG/JPG/WEBP) — Dungeon Alchemist, Watabou, DungeonDraft, Inkarnate, um print de mesa de papel, etc. Mapas grandes são redimensionados automaticamente.</p>
+        <label class="tt3d-row"><input type="checkbox" id="tt3d-grid-toggle" checked onchange="tt3dToggleGrid(this.checked)"> Mostrar grade</label>
+        <label class="tt3d-row">Tam. da grade <input type="range" id="tt3d-grid-size" min="8" max="128" value="32" oninput="tt3dSetGridSize(this.value)"><span id="tt3d-grid-size-val">32</span></label>
+      </div>
+
+      <div class="tt3d-sec">
+        <div class="tt3d-sec-title">🎭 Tokens</div>
+        <button class="tt3d-btn-primary" onclick="tt3dOpenAddToken()">➕ Adicionar token</button>
+        <div id="tt3d-token-list" class="tt3d-token-list"></div>
+      </div>
+
+      <div class="tt3d-sec">
+        <div class="tt3d-sec-title">🎥 Câmera</div>
+        <p class="tt3d-hint">Arraste pra girar a mesa · roda do mouse pra zoom · botão direito arrasta pra mover o tabuleiro.</p>
+        <button class="tt3d-btn-sec" onclick="tt3dResetCamera()">🎯 Centralizar câmera</button>
+      </div>
+    </div>
+
+    <button class="tt3d-sidebar-toggle" id="tt3d-sidebar-toggle" onclick="tt3dToggleSidebar()" title="Esconder/mostrar painel">◀</button>
+
+    <!-- Popover: adicionar/editar token -->
+    <div class="tt3d-token-editor" id="tt3d-token-editor" style="display:none">
+      <div class="tt3d-sec-title" id="tt3d-editor-title">🎭 Novo token</div>
+      <input type="text" id="tt3d-tok-name" placeholder="Nome do token" maxlength="40">
+      <div class="tt3d-row">
+        <span>Emoji/letra:</span>
+        <input type="text" id="tt3d-tok-emoji" placeholder="👺" maxlength="4" style="width:56px;text-align:center">
+      </div>
+      <div class="tt3d-row">
+        <span>Cor:</span>
+        <input type="color" id="tt3d-tok-color" value="#e33333">
+      </div>
+      <div class="tt3d-row">Tamanho <input type="range" id="tt3d-tok-size" min="0.5" max="3" step="0.1" value="1"><span id="tt3d-tok-size-val">1.0</span></div>
+      <div class="tt3d-row" style="gap:8px">
+        <button class="tt3d-btn-primary" onclick="tt3dSaveTokenEditor()">💾 Salvar</button>
+        <button class="tt3d-btn-sec" onclick="tt3dCloseTokenEditor()">Cancelar</button>
+        <button class="tt3d-btn-danger" id="tt3d-tok-del-btn" onclick="tt3dDeleteTokenFromEditor()" style="display:none">🗑️</button>
+      </div>
+    </div>
+
+    <div class="tt3d-loading" id="tt3d-loading" style="display:none">⏳ Carregando mapa...</div>
   </div>
 
   <!-- Barra flutuante "Voz Conectada" — controla a call de qualquer tela do app -->
@@ -19652,6 +19813,22 @@ window._siteGateTry = async function() {
 // (Painel de troca de senha agora vive só no Painel do Anfitrião pós-login, ver mais abaixo — _siteGateToggleAdmin e _siteGateChangePassword antigos, presos aqui no gate pré-login, foram removidos de propósito por serem um furo de segurança.)
 
 // ════════════════════════════════════════════════════════════════════════
+//  PONTE DE FIREBASE PRO MÓDULO DA MESA 3D — v202609030000
+//  ------------------------------------------------------------------------
+//  A lógica pesada da Mesa 3D (Three.js, câmera, arrastar token, etc.) vive
+//  num <script> comum lá embaixo no HTML, fora deste módulo ES. Só que
+//  `ref`, `set`, `get`, `onValue`, `db` só existem AQUI DENTRO (import de
+//  módulo não é global). Essas 4 funções na window são a ponte: o script
+//  da Mesa 3D chama _ttbRef/_ttbSet/_ttbGet/_ttbOnValue e por trás disso
+//  usa o Firebase de verdade, sem precisar duplicar imports nem reescrever
+//  a inicialização do app inteiro noutro lugar.
+// ════════════════════════════════════════════════════════════════════════
+window._ttbRef = function(path) { return ref(db, path); };
+window._ttbSet = function(path, val) { return set(ref(db, path), val); };
+window._ttbGet = function(path) { return get(ref(db, path)); };
+window._ttbOnValue = function(path, cb, errCb) { return onValue(ref(db, path), cb, errCb); };
+
+// ════════════════════════════════════════════════════════════════════════
 //  PAINEL DO ANFITRIÃO — v202609022000
 //  ------------------------------------------------------------------------
 //  Corrige o furo do modelo anterior: antes, qualquer pessoa que soubesse
@@ -30875,5 +31052,699 @@ function opSalvarItem(pid){
   };
 })();
 </script>
+
+<!-- ════════════════════════════════════════════════════════════════════
+     MESA 3D — TABLETOP (mapas + tokens em 3D, dentro da call) — v202609030000
+     ------------------------------------------------------------------------
+     Motor escrito em Three.js puro (CDN, r128 — ver tag de script no head).
+     Não usa THREE.OrbitControls (não incluído no CDN por padrão e é mais
+     um ponto de falha de rede) — a câmera é controlada por ~40 linhas de
+     código na mão (arrastar = orbitar, botão direito = pan, roda = zoom).
+
+     SINCRONIZAÇÃO: tudo (mapa da cena, tokens, posições, grade) fica em
+     Firebase em campanhas/{campanhaId}/live/tabletop (ou Live/tabletop se
+     não tiver campanha ativa — mesmo padrão de chat/rolls já usado no
+     resto do app). Qualquer alteração de qualquer pessoa aparece em tempo
+     real pra todo mundo que estiver com a Mesa 3D aberta.
+
+     PERMISSÕES: quem é Mestre da campanha ativa controla cenas, mapa e
+     grade, e pode mover/apagar qualquer token. Um Player só pode criar e
+     mover tokens que ELE MESMO criou (ownerUsername bate com o usuário
+     logado) — assim ninguém mexe no token dos outros sem querer.
+     ════════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  'use strict';
+
+  // ── Estado local ──
+  var tt = {
+    open: false,
+    scenes: {},          // { sceneId: {name, mapUrl, mapW, mapH, gridSize, showGrid, tokens:{}} }
+    activeSceneId: null,
+    renderer: null, scene: null, camera: null,
+    boardMesh: null, gridLines: null,
+    tokenMeshes: {},     // { tokenId: THREE.Group }
+    camTarget: { x: 0, y: 0, z: 0 },
+    camDist: 9, camTheta: Math.PI/4, camPhi: 0.95, // esféricas (dist, horizontal, vertical)
+    dragMode: null,      // null | 'orbit' | 'pan' | 'token'
+    dragTokenId: null,
+    lastPointer: { x: 0, y: 0 },
+    lastTokenWriteAt: 0,
+    editingTokenId: null, // null = criando novo
+    unsubTabletop: null,
+    boardW: 10, boardH: 7.5 // tamanho do tabuleiro no mundo 3D (unidades arbitrárias)
+  };
+
+  function _ttbPath() {
+    var campId = window._activeCampanhaId;
+    return campId ? ('campanhas/' + campId + '/live/tabletop') : 'Live/tabletop';
+  }
+
+  function _ttbIsMestre() {
+    try { return typeof _currentUserIsMestreOfActiveCamp === 'function' && _currentUserIsMestreOfActiveCamp(); }
+    catch(e) { return false; }
+  }
+
+  function _ttbMyUsername() {
+    try { return (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Alguém'; }
+    catch(e) { return 'Alguém'; }
+  }
+
+  function _ttbUid() { return 'tok_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+  // ══════════════════════ ABRIR / FECHAR ══════════════════════
+  window.openTabletop3D = function() {
+    var overlay = document.getElementById('tabletop3d-overlay');
+    if (!overlay) return;
+    if (typeof THREE === 'undefined') {
+      if (typeof showToast === 'function') showToast('✕ A Mesa 3D não carregou (sem internet pro Three.js?). Recarregue a página.', 'err');
+      return;
+    }
+    overlay.classList.add('open');
+    tt.open = true;
+    if (!tt.renderer) _ttbInit3D();
+    _ttbSubscribe();
+    setTimeout(_ttbOnResize, 30);
+  };
+
+  window.closeTabletop3D = function() {
+    var overlay = document.getElementById('tabletop3d-overlay');
+    if (overlay) overlay.classList.remove('open');
+    tt.open = false;
+    // A call continua rodando normalmente — só a Mesa 3D some da tela.
+    // Mantemos a assinatura do Firebase viva (barato) pra reabrir rápido
+    // com o estado já sincronizado, em vez de recarregar tudo de novo.
+  };
+
+  window.tt3dToggleSidebar = function() {
+    var sb = document.getElementById('tt3d-sidebar');
+    var btn = document.getElementById('tt3d-sidebar-toggle');
+    if (!sb) return;
+    var hidden = sb.classList.toggle('hidden');
+    if (btn) { btn.classList.toggle('sidebar-hidden', hidden); btn.textContent = hidden ? '▶' : '◀'; }
+  };
+
+  // ══════════════════════ THREE.JS: SETUP ══════════════════════
+  function _ttbInit3D() {
+    var canvas = document.getElementById('tabletop3d-canvas');
+    tt.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false });
+    tt.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    tt.scene = new THREE.Scene();
+    tt.scene.background = new THREE.Color(0x0a0b0d);
+
+    tt.camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+    _ttbUpdateCameraFromSpherical();
+
+    var hemi = new THREE.HemisphereLight(0xffffff, 0x222233, 0.9);
+    tt.scene.add(hemi);
+    var dir = new THREE.DirectionalLight(0xffffff, 0.9);
+    dir.position.set(5, 10, 6);
+    tt.scene.add(dir);
+
+    // Tabuleiro placeholder (sem mapa importado ainda) — feltro verde de mesa.
+    var boardGeo = new THREE.PlaneGeometry(tt.boardW, tt.boardH);
+    var boardMat = new THREE.MeshStandardMaterial({ color: 0x1c3d24, roughness: 0.9 });
+    tt.boardMesh = new THREE.Mesh(boardGeo, boardMat);
+    tt.boardMesh.rotation.x = -Math.PI/2;
+    tt.scene.add(tt.boardMesh);
+
+    _ttbRebuildGrid();
+
+    window.addEventListener('resize', _ttbOnResize);
+    canvas.addEventListener('mousedown', _ttbOnPointerDown);
+    canvas.addEventListener('mousemove', _ttbOnPointerMove);
+    window.addEventListener('mouseup', _ttbOnPointerUp);
+    canvas.addEventListener('wheel', _ttbOnWheel, { passive: false });
+    canvas.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+    // Touch (celular/tablet) — um dedo orbita, dois dedos fazem pinch-zoom.
+    canvas.addEventListener('touchstart', _ttbOnTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', _ttbOnTouchMove, { passive: false });
+    canvas.addEventListener('touchend', _ttbOnTouchEnd);
+
+    _ttbAnimate();
+  }
+
+  function _ttbOnResize() {
+    if (!tt.renderer) return;
+    var overlay = document.getElementById('tabletop3d-overlay');
+    var w = overlay.clientWidth || window.innerWidth;
+    var h = overlay.clientHeight || window.innerHeight;
+    tt.renderer.setSize(w, h, false);
+    tt.camera.aspect = w / h;
+    tt.camera.updateProjectionMatrix();
+  }
+
+  function _ttbAnimate() {
+    requestAnimationFrame(_ttbAnimate);
+    if (!tt.open || !tt.renderer) return;
+    // Billboards dos tokens sempre de frente pra câmera.
+    Object.keys(tt.tokenMeshes).forEach(function(id){
+      var g = tt.tokenMeshes[id];
+      if (g && g.userData && g.userData.billboard) g.userData.billboard.lookAt(tt.camera.position);
+    });
+    tt.renderer.render(tt.scene, tt.camera);
+  }
+
+  function _ttbUpdateCameraFromSpherical() {
+    var d = tt.camDist, th = tt.camTheta, ph = tt.camPhi;
+    ph = Math.max(0.15, Math.min(1.5, ph));
+    tt.camPhi = ph;
+    var x = tt.camTarget.x + d * Math.sin(ph) * Math.sin(th);
+    var y = tt.camTarget.y + d * Math.cos(ph);
+    var z = tt.camTarget.z + d * Math.sin(ph) * Math.cos(th);
+    tt.camera.position.set(x, y, z);
+    tt.camera.lookAt(tt.camTarget.x, tt.camTarget.y, tt.camTarget.z);
+  }
+
+  window.tt3dResetCamera = function() {
+    tt.camTarget = { x: 0, y: 0, z: 0 };
+    tt.camDist = Math.max(tt.boardW, tt.boardH) * 1.15;
+    tt.camTheta = Math.PI/4; tt.camPhi = 0.95;
+    _ttbUpdateCameraFromSpherical();
+  };
+
+  // ══════════════════════ GRADE (GRID) ══════════════════════
+  function _ttbRebuildGrid() {
+    if (tt.gridLines) { tt.scene.remove(tt.gridLines); tt.gridLines.geometry.dispose(); tt.gridLines.material.dispose(); }
+    var scene = _ttbActiveScene();
+    if (!scene || !scene.showGrid) { tt.gridLines = null; return; }
+    var cellsX = Math.max(4, Math.round(tt.boardW / (tt.boardW / Math.max(4, Math.round((scene.mapW||800)/(scene.gridSize||32))))));
+    // Simplificação: usamos direto quantas células cabem no tabuleiro
+    // proporcionalmente ao tamanho de grade escolhido (em "px" do mapa
+    // original) — não precisa ser exato, só visualmente útil.
+    var nx = Math.max(4, Math.round((scene.mapW || 1000) / (scene.gridSize || 32)));
+    var ny = Math.max(4, Math.round((scene.mapH || 750) / (scene.gridSize || 32)));
+    var geo = new THREE.BufferGeometry();
+    var pts = [];
+    var hw = tt.boardW/2, hh = tt.boardH/2;
+    for (var i=0;i<=nx;i++){ var gx=-hw+(i/nx)*tt.boardW; pts.push(gx,0.01,-hh, gx,0.01,hh); }
+    for (var j=0;j<=ny;j++){ var gz=-hh+(j/ny)*tt.boardH; pts.push(-hw,0.01,gz, hw,0.01,gz); }
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    var mat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.18 });
+    tt.gridLines = new THREE.LineSegments(geo, mat);
+    tt.scene.add(tt.gridLines);
+  }
+
+  window.tt3dToggleGrid = function(checked) {
+    var scene = _ttbActiveScene(); if (!scene) return;
+    scene.showGrid = !!checked;
+    _ttbRebuildGrid();
+    _ttbPersistScene();
+  };
+  window.tt3dSetGridSize = function(val) {
+    var scene = _ttbActiveScene(); if (!scene) return;
+    scene.gridSize = parseInt(val, 10) || 32;
+    document.getElementById('tt3d-grid-size-val').textContent = scene.gridSize;
+    _ttbRebuildGrid();
+    _ttbPersistScene();
+  };
+
+  // ══════════════════════ MAPA ══════════════════════
+  window.tt3dImportMap = function(file) {
+    if (!file) return;
+    if (!_ttbIsMestre()) { if (typeof showToast==='function') showToast('✕ Só o Mestre pode trocar o mapa.', 'err'); return; }
+    var loadingEl = document.getElementById('tt3d-loading');
+    if (loadingEl) loadingEl.style.display = 'block';
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      var img = new Image();
+      img.onload = function() {
+        // Redimensiona pra no máximo 1600px no lado maior, evitando estourar
+        // o tamanho prático do Firebase Realtime Database (que não foi
+        // feito pra guardar arquivos grandes) — e comprime como WEBP/JPEG.
+        var MAXSIDE = 1600;
+        var w = img.width, h = img.height;
+        var scale = Math.min(1, MAXSIDE / Math.max(w, h));
+        var cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
+        var canvas = document.createElement('canvas');
+        canvas.width = cw; canvas.height = ch;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, cw, ch);
+        var dataUrl;
+        try { dataUrl = canvas.toDataURL('image/webp', 0.85); } catch(e) { dataUrl = null; }
+        if (!dataUrl || dataUrl.indexOf('data:image/webp') !== 0) dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+        var scene = _ttbActiveScene();
+        if (!scene) return;
+        scene.mapUrl = dataUrl; scene.mapW = cw; scene.mapH = ch;
+        _ttbApplyMapToBoard(scene);
+        _ttbRebuildGrid();
+        _ttbPersistScene();
+        if (loadingEl) loadingEl.style.display = 'none';
+        if (typeof showToast === 'function') showToast('✓ Mapa importado (' + cw + '×' + ch + 'px, comprimido pra ' + Math.round(dataUrl.length/1024) + 'KB)', 'ok');
+      };
+      img.onerror = function() { if (loadingEl) loadingEl.style.display = 'none'; if (typeof showToast==='function') showToast('✕ Não consegui ler essa imagem.', 'err'); };
+      img.src = ev.target.result;
+    };
+    reader.onerror = function() { if (loadingEl) loadingEl.style.display = 'none'; };
+    reader.readAsDataURL(file);
+  };
+
+  function _ttbApplyMapToBoard(scene) {
+    if (!tt.boardMesh) return;
+    // Ajusta a proporção do tabuleiro 3D pra bater com a proporção real do mapa.
+    var aspect = (scene.mapW && scene.mapH) ? (scene.mapW / scene.mapH) : (4/3);
+    tt.boardH = 7.5; tt.boardW = tt.boardH * aspect;
+    tt.boardMesh.geometry.dispose();
+    tt.boardMesh.geometry = new THREE.PlaneGeometry(tt.boardW, tt.boardH);
+    if (scene.mapUrl) {
+      new THREE.TextureLoader().load(scene.mapUrl, function(tex){
+        tex.colorSpace = THREE.SRGBColorSpace || tex.colorSpace;
+        tt.boardMesh.material.map = tex;
+        tt.boardMesh.material.color.set(0xffffff);
+        tt.boardMesh.material.needsUpdate = true;
+      });
+    } else {
+      tt.boardMesh.material.map = null;
+      tt.boardMesh.material.color.set(0x1c3d24);
+      tt.boardMesh.material.needsUpdate = true;
+    }
+  }
+
+  // ══════════════════════ CENAS ══════════════════════
+  function _ttbActiveScene() { return tt.activeSceneId ? tt.scenes[tt.activeSceneId] : null; }
+
+  function _ttbNewSceneObj(name) {
+    return { name: name || 'Nova cena', mapUrl: null, mapW: 1000, mapH: 750, gridSize: 32, showGrid: true, tokens: {} };
+  }
+
+  window.tt3dNewScene = function() {
+    if (!_ttbIsMestre()) { if (typeof showToast==='function') showToast('✕ Só o Mestre pode criar cenas.', 'err'); return; }
+    var name = prompt('Nome da nova cena:', 'Cena ' + (Object.keys(tt.scenes).length + 1));
+    if (!name) return;
+    var id = 'scene_' + Date.now().toString(36);
+    tt.scenes[id] = _ttbNewSceneObj(name);
+    tt.activeSceneId = id;
+    _ttbPersistAll();
+    _ttbRenderSceneSelect();
+    _ttbLoadActiveSceneIntoWorld();
+  };
+
+  window.tt3dRenameScene = function() {
+    var scene = _ttbActiveScene(); if (!scene) return;
+    if (!_ttbIsMestre()) { if (typeof showToast==='function') showToast('✕ Só o Mestre pode renomear cenas.', 'err'); return; }
+    var name = prompt('Novo nome da cena:', scene.name);
+    if (!name) return;
+    scene.name = name;
+    _ttbPersistScene();
+    _ttbRenderSceneSelect();
+  };
+
+  window.tt3dDeleteScene = function() {
+    if (!_ttbIsMestre()) { if (typeof showToast==='function') showToast('✕ Só o Mestre pode excluir cenas.', 'err'); return; }
+    var ids = Object.keys(tt.scenes);
+    if (ids.length <= 1) { if (typeof showToast==='function') showToast('✕ Não dá pra excluir a única cena.', 'err'); return; }
+    var scene = _ttbActiveScene(); if (!scene) return;
+    if (!confirm('Excluir a cena "' + scene.name + '"? Isso apaga o mapa e todos os tokens dela.')) return;
+    delete tt.scenes[tt.activeSceneId];
+    tt.activeSceneId = Object.keys(tt.scenes)[0];
+    _ttbPersistAll();
+    _ttbRenderSceneSelect();
+    _ttbLoadActiveSceneIntoWorld();
+  };
+
+  window.tt3dSwitchScene = function(id) {
+    if (!tt.scenes[id]) return;
+    tt.activeSceneId = id;
+    if (_ttbIsMestre()) _ttbSet(_ttbPath() + '/activeSceneId', id);
+    _ttbLoadActiveSceneIntoWorld();
+  };
+
+  function _ttbRenderSceneSelect() {
+    var sel = document.getElementById('tt3d-scene-select');
+    if (!sel) return;
+    sel.innerHTML = Object.keys(tt.scenes).map(function(id){
+      return '<option value="'+id+'"'+(id===tt.activeSceneId?' selected':'')+'>'+_ttbEsc(tt.scenes[id].name)+'</option>';
+    }).join('');
+    var mestre = _ttbIsMestre();
+    ['tt3d-btn-newscene','tt3d-btn-renamescene','tt3d-btn-delscene','tt3d-sec-map'].forEach(function(id){
+      var el = document.getElementById(id); if (el) el.style.display = mestre ? '' : 'none';
+    });
+    sel.disabled = !mestre;
+  }
+
+  function _ttbLoadActiveSceneIntoWorld() {
+    var scene = _ttbActiveScene();
+    if (!tt.renderer || !scene) return;
+    _ttbApplyMapToBoard(scene);
+    document.getElementById('tt3d-grid-toggle').checked = !!scene.showGrid;
+    document.getElementById('tt3d-grid-size').value = scene.gridSize || 32;
+    document.getElementById('tt3d-grid-size-val').textContent = scene.gridSize || 32;
+    _ttbRebuildGrid();
+    _ttbRebuildAllTokens();
+    tt3dResetCamera();
+  }
+
+  // ══════════════════════ TOKENS: RENDER 3D ══════════════════════
+  function _ttbTokenTexture(tok) {
+    var c = document.createElement('canvas'); c.width = 128; c.height = 128;
+    var ctx = c.getContext('2d');
+    ctx.clearRect(0,0,128,128);
+    ctx.font = '84px "Segoe UI Emoji","Noto Color Emoji",sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff';
+    ctx.fillText((tok.emoji || (tok.name||'?').charAt(0).toUpperCase()), 64, 70);
+    return new THREE.CanvasTexture(c);
+  }
+
+  function _ttbBuildTokenMesh(id, tok) {
+    var group = new THREE.Group();
+    var size = 0.55 * (tok.size || 1);
+    var baseGeo = new THREE.CylinderGeometry(size, size, 0.12, 24);
+    var baseMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(tok.color || '#e33333'), roughness: 0.5 });
+    var base = new THREE.Mesh(baseGeo, baseMat);
+    base.position.y = 0.06;
+    group.add(base);
+
+    var ringGeo = new THREE.RingGeometry(size*1.02, size*1.16, 32);
+    var ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.0 });
+    var ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = -Math.PI/2; ring.position.y = 0.02;
+    group.add(ring);
+    group.userData.selectRing = ring;
+
+    var billGeo = new THREE.PlaneGeometry(size*1.3, size*1.3);
+    var billMat = new THREE.MeshBasicMaterial({ map: _ttbTokenTexture(tok), transparent: true });
+    var billboard = new THREE.Mesh(billGeo, billMat);
+    billboard.position.y = 0.55 * (tok.size||1) + 0.15;
+    group.add(billboard);
+    group.userData.billboard = billboard;
+
+    group.userData.tokenId = id;
+    group.userData.tok = tok;
+    _ttbPositionTokenGroup(group, tok);
+    return group;
+  }
+
+  function _ttbPositionTokenGroup(group, tok) {
+    var x = (tok.x - 0.5) * tt.boardW;
+    var z = (tok.y - 0.5) * tt.boardH;
+    group.position.set(x, 0, z);
+  }
+
+  function _ttbRebuildAllTokens() {
+    Object.keys(tt.tokenMeshes).forEach(function(id){ tt.scene.remove(tt.tokenMeshes[id]); });
+    tt.tokenMeshes = {};
+    var scene = _ttbActiveScene(); if (!scene) return;
+    Object.keys(scene.tokens || {}).forEach(function(id){
+      var g = _ttbBuildTokenMesh(id, scene.tokens[id]);
+      tt.scene.add(g);
+      tt.tokenMeshes[id] = g;
+    });
+    _ttbRenderTokenList();
+  }
+
+  function _ttbRenderTokenList() {
+    var box = document.getElementById('tt3d-token-list');
+    if (!box) return;
+    var scene = _ttbActiveScene();
+    var tokens = scene ? scene.tokens || {} : {};
+    var mestre = _ttbIsMestre(); var me = _ttbMyUsername();
+    box.innerHTML = Object.keys(tokens).map(function(id){
+      var t = tokens[id];
+      var canEdit = mestre || t.ownerUsername === me;
+      return '<div class="tt3d-token-item" onclick="'+(canEdit ? "tt3dOpenEditToken('"+id+"')" : '')+'" style="'+(canEdit?'':'opacity:.55;cursor:default')+'">'
+        + '<span class="tt3d-token-swatch" style="background:'+(t.color||'#e33')+'"></span>'
+        + '<span>'+(t.emoji||'🎭')+' '+_ttbEsc(t.name||'Token')+'</span>'
+        + (t.ownerUsername ? '<span style="margin-left:auto;opacity:.5">'+_ttbEsc(t.ownerUsername)+'</span>' : '')
+        + '</div>';
+    }).join('') || '<p class="tt3d-hint">Nenhum token nesta cena ainda.</p>';
+  }
+
+  // ══════════════════════ TOKENS: EDITOR ══════════════════════
+  window.tt3dOpenAddToken = function() {
+    tt.editingTokenId = null;
+    document.getElementById('tt3d-editor-title').textContent = '🎭 Novo token';
+    document.getElementById('tt3d-tok-name').value = '';
+    document.getElementById('tt3d-tok-emoji').value = '🎲';
+    document.getElementById('tt3d-tok-color').value = '#e33333';
+    document.getElementById('tt3d-tok-size').value = 1;
+    document.getElementById('tt3d-tok-size-val').textContent = '1.0';
+    document.getElementById('tt3d-tok-del-btn').style.display = 'none';
+    document.getElementById('tt3d-token-editor').style.display = 'block';
+  };
+
+  window.tt3dOpenEditToken = function(id) {
+    var scene = _ttbActiveScene(); if (!scene) return;
+    var t = scene.tokens[id]; if (!t) return;
+    tt.editingTokenId = id;
+    document.getElementById('tt3d-editor-title').textContent = '🎭 Editar token';
+    document.getElementById('tt3d-tok-name').value = t.name || '';
+    document.getElementById('tt3d-tok-emoji').value = t.emoji || '';
+    document.getElementById('tt3d-tok-color').value = t.color || '#e33333';
+    document.getElementById('tt3d-tok-size').value = t.size || 1;
+    document.getElementById('tt3d-tok-size-val').textContent = (t.size||1).toFixed(1);
+    document.getElementById('tt3d-tok-del-btn').style.display = '';
+    document.getElementById('tt3d-token-editor').style.display = 'block';
+  };
+
+  window.tt3dCloseTokenEditor = function() {
+    document.getElementById('tt3d-token-editor').style.display = 'none';
+    tt.editingTokenId = null;
+  };
+
+  document.addEventListener('input', function(e){
+    if (e.target && e.target.id === 'tt3d-tok-size') {
+      document.getElementById('tt3d-tok-size-val').textContent = parseFloat(e.target.value).toFixed(1);
+    }
+  });
+
+  window.tt3dSaveTokenEditor = function() {
+    var scene = _ttbActiveScene(); if (!scene) return;
+    var name = document.getElementById('tt3d-tok-name').value.trim() || 'Token';
+    var emoji = document.getElementById('tt3d-tok-emoji').value.trim() || '🎲';
+    var color = document.getElementById('tt3d-tok-color').value || '#e33333';
+    var size = parseFloat(document.getElementById('tt3d-tok-size').value) || 1;
+
+    if (tt.editingTokenId) {
+      var existing = scene.tokens[tt.editingTokenId];
+      if (!existing) return;
+      if (!_ttbIsMestre() && existing.ownerUsername !== _ttbMyUsername()) {
+        if (typeof showToast==='function') showToast('✕ Esse token não é seu.', 'err'); return;
+      }
+      existing.name = name; existing.emoji = emoji; existing.color = color; existing.size = size;
+    } else {
+      var id = _ttbUid();
+      scene.tokens[id] = { name: name, emoji: emoji, color: color, size: size, x: 0.5, y: 0.5, ownerUsername: _ttbMyUsername() };
+    }
+    _ttbPersistScene();
+    _ttbRebuildAllTokens();
+    tt3dCloseTokenEditor();
+  };
+
+  window.tt3dDeleteTokenFromEditor = function() {
+    var scene = _ttbActiveScene(); if (!scene || !tt.editingTokenId) return;
+    var t = scene.tokens[tt.editingTokenId];
+    if (!t) return;
+    if (!_ttbIsMestre() && t.ownerUsername !== _ttbMyUsername()) {
+      if (typeof showToast==='function') showToast('✕ Esse token não é seu.', 'err'); return;
+    }
+    delete scene.tokens[tt.editingTokenId];
+    _ttbPersistScene();
+    _ttbRebuildAllTokens();
+    tt3dCloseTokenEditor();
+  };
+
+  // ══════════════════════ CONTROLE DE CÂMERA / ARRASTAR TOKEN ══════════════════════
+  var _raycaster = null, _boardPlaneMath = null;
+
+  function _ttbGetNDC(e) {
+    var canvas = document.getElementById('tabletop3d-canvas');
+    var r = canvas.getBoundingClientRect();
+    return {
+      x: ((e.clientX - r.left) / r.width) * 2 - 1,
+      y: -((e.clientY - r.top) / r.height) * 2 + 1
+    };
+  }
+
+  function _ttbPickToken(e) {
+    if (!_raycaster) _raycaster = new THREE.Raycaster();
+    var ndc = _ttbGetNDC(e);
+    _raycaster.setFromCamera(ndc, tt.camera);
+    var meshes = Object.keys(tt.tokenMeshes).map(function(id){ return tt.tokenMeshes[id]; });
+    var hits = _raycaster.intersectObjects(meshes, true);
+    if (!hits.length) return null;
+    var obj = hits[0].object;
+    while (obj && !obj.userData.tokenId) obj = obj.parent;
+    return obj ? obj.userData.tokenId : null;
+  }
+
+  function _ttbPickBoardPoint(e) {
+    if (!_raycaster) _raycaster = new THREE.Raycaster();
+    var ndc = _ttbGetNDC(e);
+    _raycaster.setFromCamera(ndc, tt.camera);
+    if (!_boardPlaneMath) _boardPlaneMath = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
+    var pt = new THREE.Vector3();
+    var hit = _raycaster.ray.intersectPlane(_boardPlaneMath, pt);
+    return hit ? pt : null;
+  }
+
+  function _ttbOnPointerDown(e) {
+    tt.lastPointer = { x: e.clientX, y: e.clientY };
+    var canvas = document.getElementById('tabletop3d-canvas');
+    if (e.button === 0) {
+      var tokenId = _ttbPickToken(e);
+      if (tokenId) {
+        var scene = _ttbActiveScene();
+        var t = scene && scene.tokens[tokenId];
+        var canMove = t && (_ttbIsMestre() || t.ownerUsername === _ttbMyUsername());
+        if (canMove) {
+          tt.dragMode = 'token'; tt.dragTokenId = tokenId;
+          var g = tt.tokenMeshes[tokenId];
+          if (g && g.userData.selectRing) g.userData.selectRing.material.opacity = 0.85;
+          canvas.classList.add('dragging-token');
+          return;
+        }
+      }
+      tt.dragMode = 'orbit';
+      canvas.classList.add('dragging-cam');
+    } else if (e.button === 2) {
+      tt.dragMode = 'pan';
+      canvas.classList.add('dragging-cam');
+    }
+  }
+
+  function _ttbOnPointerMove(e) {
+    if (!tt.dragMode) return;
+    var dx = e.clientX - tt.lastPointer.x, dy = e.clientY - tt.lastPointer.y;
+    tt.lastPointer = { x: e.clientX, y: e.clientY };
+
+    if (tt.dragMode === 'orbit') {
+      tt.camTheta -= dx * 0.006;
+      tt.camPhi -= dy * 0.006;
+      _ttbUpdateCameraFromSpherical();
+    } else if (tt.dragMode === 'pan') {
+      var panScale = tt.camDist * 0.0012;
+      var fwd = new THREE.Vector3(); tt.camera.getWorldDirection(fwd); fwd.y = 0; fwd.normalize();
+      var right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0,1,0)).normalize();
+      tt.camTarget.x -= right.x * dx * panScale;
+      tt.camTarget.z -= right.z * dx * panScale;
+      tt.camTarget.x += fwd.x * dy * panScale;
+      tt.camTarget.z += fwd.z * dy * panScale;
+      _ttbUpdateCameraFromSpherical();
+    } else if (tt.dragMode === 'token' && tt.dragTokenId) {
+      var pt = _ttbPickBoardPoint(e);
+      if (!pt) return;
+      var scene = _ttbActiveScene(); if (!scene) return;
+      var t = scene.tokens[tt.dragTokenId]; if (!t) return;
+      var nx = pt.x / tt.boardW + 0.5;
+      var ny = pt.z / tt.boardH + 0.5;
+      nx = Math.max(0, Math.min(1, nx)); ny = Math.max(0, Math.min(1, ny));
+      t.x = nx; t.y = ny;
+      var g = tt.tokenMeshes[tt.dragTokenId];
+      if (g) _ttbPositionTokenGroup(g, t);
+      // Escreve no Firebase com um throttle simples pra não spammar (~12x/seg).
+      var now = Date.now();
+      if (now - tt.lastTokenWriteAt > 80) {
+        tt.lastTokenWriteAt = now;
+        _ttbSet(_ttbPath() + '/scenes/' + tt.activeSceneId + '/tokens/' + tt.dragTokenId + '/x', nx);
+        _ttbSet(_ttbPath() + '/scenes/' + tt.activeSceneId + '/tokens/' + tt.dragTokenId + '/y', ny);
+      }
+    }
+  }
+
+  function _ttbOnPointerUp() {
+    var canvas = document.getElementById('tabletop3d-canvas');
+    if (tt.dragMode === 'token' && tt.dragTokenId) {
+      var scene = _ttbActiveScene();
+      var t = scene && scene.tokens[tt.dragTokenId];
+      if (t) {
+        _ttbSet(_ttbPath() + '/scenes/' + tt.activeSceneId + '/tokens/' + tt.dragTokenId + '/x', t.x);
+        _ttbSet(_ttbPath() + '/scenes/' + tt.activeSceneId + '/tokens/' + tt.dragTokenId + '/y', t.y);
+      }
+      var g = tt.tokenMeshes[tt.dragTokenId];
+      if (g && g.userData.selectRing) g.userData.selectRing.material.opacity = 0.0;
+    }
+    tt.dragMode = null; tt.dragTokenId = null;
+    if (canvas) { canvas.classList.remove('dragging-cam'); canvas.classList.remove('dragging-token'); }
+  }
+
+  function _ttbOnWheel(e) {
+    e.preventDefault();
+    tt.camDist *= (1 + (e.deltaY > 0 ? 0.1 : -0.1));
+    tt.camDist = Math.max(2, Math.min(40, tt.camDist));
+    _ttbUpdateCameraFromSpherical();
+  }
+
+  // Toque (mobile): 1 dedo orbita a câmera (ou arrasta token se tocar nele),
+  // 2 dedos fazem pinch-zoom.
+  var _touchPrev = null;
+  function _ttbOnTouchStart(e) {
+    if (e.touches.length === 1) {
+      _ttbOnPointerDown({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY, button: 0 });
+    } else if (e.touches.length === 2) {
+      _touchPrev = _ttbTouchDist(e.touches);
+    }
+    e.preventDefault();
+  }
+  function _ttbOnTouchMove(e) {
+    if (e.touches.length === 1) {
+      _ttbOnPointerMove({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
+    } else if (e.touches.length === 2) {
+      var d = _ttbTouchDist(e.touches);
+      if (_touchPrev) {
+        tt.camDist *= (1 + (d > _touchPrev ? -0.02 : 0.02));
+        tt.camDist = Math.max(2, Math.min(40, tt.camDist));
+        _ttbUpdateCameraFromSpherical();
+      }
+      _touchPrev = d;
+    }
+    e.preventDefault();
+  }
+  function _ttbOnTouchEnd(e) { _touchPrev = null; _ttbOnPointerUp(); }
+  function _ttbTouchDist(touches) {
+    var dx = touches[0].clientX - touches[1].clientX, dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx*dx + dy*dy);
+  }
+
+  // ══════════════════════ PERSISTÊNCIA / SYNC ══════════════════════
+  function _ttbPersistScene() {
+    if (!tt.activeSceneId) return;
+    _ttbSet(_ttbPath() + '/scenes/' + tt.activeSceneId, tt.scenes[tt.activeSceneId]);
+  }
+  function _ttbPersistAll() {
+    _ttbSet(_ttbPath(), { activeSceneId: tt.activeSceneId, scenes: tt.scenes });
+  }
+
+  function _ttbSubscribe() {
+    if (tt.unsubTabletop) return; // já assinado, não duplica listener
+    tt.unsubTabletop = window._ttbOnValue(_ttbPath(), function(snap) {
+      var v = snap.val();
+      if (!v || !v.scenes || !Object.keys(v.scenes).length) {
+        // Primeira vez nessa campanha: cria uma cena vazia inicial.
+        if (_ttbIsMestre()) {
+          var id = 'scene_' + Date.now().toString(36);
+          tt.scenes = {}; tt.scenes[id] = _ttbNewSceneObj('Cena 1');
+          tt.activeSceneId = id;
+          _ttbPersistAll();
+        }
+        return;
+      }
+      tt.scenes = v.scenes;
+      tt.activeSceneId = (v.activeSceneId && v.scenes[v.activeSceneId]) ? v.activeSceneId : Object.keys(v.scenes)[0];
+      _ttbRenderSceneSelect();
+      // Não pisa em cima de um drag local em andamento.
+      if (tt.dragMode !== 'token') {
+        _ttbLoadActiveSceneIntoWorld();
+      } else {
+        // Durante um drag, só atualiza os OUTROS tokens (não o que estou arrastando).
+        var scene = _ttbActiveScene();
+        if (scene) Object.keys(scene.tokens || {}).forEach(function(id){
+          if (id === tt.dragTokenId) return;
+          var g = tt.tokenMeshes[id];
+          if (g) _ttbPositionTokenGroup(g, scene.tokens[id]);
+        });
+      }
+    }, function(err) {
+      console.warn('[TabletopMesa3D] Falha ao sincronizar (permissão do Firebase?):', err);
+      if (typeof showToast === 'function') showToast('⚠ Mesa 3D sem sincronização (checa as regras do Firebase pro caminho "campanhas/.../live/tabletop" e "Live/tabletop").', 'err');
+    });
+  }
+
+  function _ttbEsc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+})();
+</script>
+
 </body>
 </html>
