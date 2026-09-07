@@ -171,6 +171,10 @@
 <script src="https://cdn.jsdelivr.net/npm/lucide/dist/umd/lucide.min.js"></script>
 <!-- Three.js — motor 3D usado pela Mesa 3D (tabletop de mapas/tokens dentro da call) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!-- GLTFLoader — permite importar modelos 3D de verdade (.glb/.gltf) como
+     terreno da Mesa 3D, não só uma imagem plana. Vem do jsdelivr porque o
+     cdnjs só espelha o núcleo do Three.js, não os "examples". -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <!-- YouTube IFrame API — permite controlar de verdade o áudio do YouTube tocado
      no painel de Áudio Ambiente (play/pause/stop/volume/loop), que antes só
      mexiam no player de arquivo local e não tinham nenhum efeito sobre o
@@ -3124,6 +3128,20 @@ textarea{resize:vertical;min-height:72px;border-radius:var(--r-sm)}
   position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:6;
   color:#fff; font-size:.85rem; background:rgba(0,0,0,.6); padding:14px 22px; border-radius:10px;
 }
+.tt3d-help-modal{
+  position:absolute; inset:0; z-index:20; background:rgba(0,0,0,.75);
+  display:flex; align-items:center; justify-content:center; padding:20px;
+}
+.tt3d-help-box{
+  position:relative; max-width:520px; max-height:80vh; overflow-y:auto;
+  background:#141419; border:1px solid rgba(255,255,255,.15); border-radius:14px;
+  padding:22px 24px; color:rgba(255,255,255,.85); font-size:.72rem; line-height:1.65;
+}
+.tt3d-help-box h3{ color:#7ee0ff; margin:0 0 12px; font-size:1rem; }
+.tt3d-help-box b{ color:#fff; }
+.tt3d-help-box code{ background:rgba(255,255,255,.1); padding:2px 6px; border-radius:4px; font-size:.68rem; color:#ffe066; }
+.tt3d-help-box ol{ padding-left:20px; margin:8px 0; }
+.tt3d-help-box li{ margin-bottom:6px; }
 .tt3d-mode-row{ display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
 .tt3d-mode-btn{
   flex:1; min-width:70px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
@@ -7649,19 +7667,62 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
         <button class="tt3d-icon-btn" id="tt3d-btn-delscene" onclick="tt3dDeleteScene()" title="Excluir cena">🗑️</button>
       </div>
       <div class="tt3d-title">🗺️ MESA 3D</div>
+      <button class="tt3d-icon-btn" onclick="tt3dShowHelp()" title="Como fazer/importar um mapa">❓</button>
       <button class="tt3d-icon-btn tt3d-close" onclick="closeTabletop3D()" title="Fechar (a call continua)">✕</button>
+    </div>
+
+    <div class="tt3d-help-modal" id="tt3d-help-modal" style="display:none">
+      <div class="tt3d-help-box">
+        <button class="tt3d-icon-btn" style="position:absolute;top:12px;right:12px" onclick="tt3dHideHelp()">✕</button>
+        <h3>🗺️ Como fazer um mapa e importar aqui</h3>
+
+        <p><b>Opção rápida — mapa 2D (imagem):</b></p>
+        <ol>
+          <li>Use um app de mapas: <b>Dungeon Alchemist</b>, <b>Watabou</b> (dungeon/village generator, grátis no navegador), <b>DungeonDraft</b> ou <b>Inkarnate</b>.</li>
+          <li>Exporte/salve como PNG ou JPG.</li>
+          <li>Aqui na Mesa 3D, clique em "📥 Importar imagem de mapa (2D)" e escolha o arquivo.</li>
+        </ol>
+        <p>Isso fica em 3D (você gira a câmera, os tokens têm volume e sombra), mas o CHÃO em si é uma imagem esticada numa superfície plana — rápido de fazer e já fica ótimo pra 95% das mesas.</p>
+
+        <p><b>Opção "tudo 3D de verdade" — terreno com volume real:</b></p>
+        <p>Pra ter paredes, degraus e relevo de verdade (não só uma foto no chão), você importa um <b>modelo 3D</b> no formato <code>.glb</code>. Passo a passo mais fácil pra quem tá começando:</p>
+        <ol>
+          <li>Baixe um modelo pronto — o site <b>Kenney.nl</b> tem pacotes de dungeon/fantasia 100% grátis, já em formato compatível (procure "dungeon" ou "castle kit"). O <b>Sketchfab</b> também tem muitos modelos grátis pra baixar em .glb (filtre por "Downloadable" + licença livre).</li>
+          <li>Ou construa o seu: <b>Blockbench</b> (grátis, estilo "blocos", bem fácil) ou <b>Blender</b> (mais poderoso, curva de aprendizado maior) — os dois exportam direto pra <code>.glb</code>.</li>
+          <li>O arquivo .glb precisa estar num link direto acessível pela internet. Jeito mais simples e grátis: crie uma conta no <b>GitHub</b>, crie um repositório público, arraste o arquivo .glb pra dentro dele, e use o link no formato:<br>
+          <code>https://cdn.jsdelivr.net/gh/SEU-USUARIO/SEU-REPOSITORIO@main/mapa.glb</code></li>
+          <li>Cole esse link no campo "🧱 Modelo 3D" aqui na Mesa 3D e clique em "Carregar modelo".</li>
+        </ol>
+        <p class="tt3d-hint">O modelo substitui o mapa 2D nessa cena enquanto estiver carregado (mas você pode remover e voltar pro 2D quando quiser). Modelos muito pesados (várias dezenas de MB) podem demorar pra carregar pros jogadores.</p>
+      </div>
     </div>
 
     <div class="tt3d-sidebar" id="tt3d-sidebar">
       <div class="tt3d-sec" id="tt3d-sec-map">
         <div class="tt3d-sec-title">🖼️ Mapa</div>
         <label class="tt3d-file-btn">
-          📥 Importar imagem de mapa
+          📥 Importar imagem de mapa (2D)
           <input type="file" accept="image/*" id="tt3d-map-input" onchange="tt3dImportMap(this.files[0])" style="display:none">
         </label>
         <p class="tt3d-hint">Funciona com qualquer app que exporte imagem (PNG/JPG/WEBP) — Dungeon Alchemist, Watabou, DungeonDraft, Inkarnate, um print de mesa de papel, etc. Mapas grandes são redimensionados automaticamente.</p>
         <label class="tt3d-row"><input type="checkbox" id="tt3d-grid-toggle" checked onchange="tt3dToggleGrid(this.checked)"> Mostrar grade</label>
         <label class="tt3d-row">Tam. da grade <input type="range" id="tt3d-grid-size" min="8" max="128" value="32" oninput="tt3dSetGridSize(this.value)"><span id="tt3d-grid-size-val">32</span></label>
+        <label class="tt3d-row">📐 Tamanho do mapa <input type="range" id="tt3d-map-scale" min="0.5" max="3" step="0.1" value="1" oninput="tt3dSetMapScale(this.value)"><span id="tt3d-map-scale-val">1.0×</span></label>
+
+        <div class="tt3d-sec-title" style="margin-top:14px">🧱 Modelo 3D (opcional)</div>
+        <p class="tt3d-hint">Cola aqui o link direto de um arquivo .glb/.gltf pra usar um terreno 3D de verdade em vez de imagem plana. Veja a explicação de como conseguir um no botão de ajuda (?) lá em cima.</p>
+        <input type="text" id="tt3d-model3d-url" placeholder="https://.../mapa.glb" style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:8px 10px;color:#fff;font-family:inherit;font-size:.66rem;margin-top:4px">
+        <div class="tt3d-row" style="gap:6px;margin-top:6px">
+          <button class="tt3d-btn-sec" style="flex:1" onclick="tt3dImportModel3D()">🧱 Carregar modelo</button>
+          <button class="tt3d-btn-danger" onclick="tt3dRemoveModel3D()" title="Remover modelo, voltar pro mapa 2D">🗑️</button>
+        </div>
+
+        <div class="tt3d-sec-title" style="margin-top:14px">🌌 Céu</div>
+        <label class="tt3d-file-btn" style="background:linear-gradient(135deg,#2a3a6a,#141a33)">
+          🌤️ Importar textura de céu
+          <input type="file" accept="image/*" id="tt3d-sky-input" onchange="tt3dImportSky(this.files[0])" style="display:none">
+        </label>
+        <button class="tt3d-btn-sec" style="margin-top:6px" onclick="tt3dRemoveSky()">🗑️ Remover céu (usar padrão)</button>
       </div>
 
       <div class="tt3d-sec">
@@ -7737,7 +7798,23 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
         <input type="color" id="tt3d-tok-color" value="#e33333">
       </div>
       <div class="tt3d-row">Tamanho <input type="range" id="tt3d-tok-size" min="0.5" max="3" step="0.1" value="1"><span id="tt3d-tok-size-val">1.0</span></div>
-      <div class="tt3d-row" style="gap:8px">
+
+      <div class="tt3d-sec-title" style="margin-top:10px;font-size:.62rem">🖼️ Imagem própria (opcional)</div>
+      <p class="tt3d-hint">Se você subir uma imagem, ela substitui o emoji. Dá pra usar GIF animado.</p>
+      <label class="tt3d-file-btn" style="font-size:.6rem;padding:7px">
+        📥 Imagem de frente
+        <input type="file" accept="image/*" id="tt3d-tok-img-front" onchange="tt3dTokenImgUpload('front',this.files[0])" style="display:none">
+      </label>
+      <div id="tt3d-tok-front-preview" class="tt3d-row" style="display:none"><img style="width:28px;height:28px;border-radius:6px;object-fit:cover"><span>✓ carregada</span><span style="margin-left:auto;cursor:pointer;color:#ff8f8f" onclick="tt3dTokenImgClear('front')">✕</span></div>
+      <label class="tt3d-file-btn" style="font-size:.6rem;padding:7px;margin-top:6px;background:linear-gradient(135deg,#555,#333)">
+        📥 Imagem de verso (opcional)
+        <input type="file" accept="image/*" id="tt3d-tok-img-back" onchange="tt3dTokenImgUpload('back',this.files[0])" style="display:none">
+      </label>
+      <div id="tt3d-tok-back-preview" class="tt3d-row" style="display:none"><img style="width:28px;height:28px;border-radius:6px;object-fit:cover"><span>✓ carregada</span><span style="margin-left:auto;cursor:pointer;color:#ff8f8f" onclick="tt3dTokenImgClear('back')">✕</span></div>
+      <p class="tt3d-hint">Com verso definido, dá pra virar o token (clique duplo nele na mesa, ou o botão 🔄 na lista).</p>
+      <label class="tt3d-row"><input type="checkbox" id="tt3d-tok-animated"> É GIF animado (atualiza a cada quadro)</label>
+
+      <div class="tt3d-row" style="gap:8px;margin-top:10px">
         <button class="tt3d-btn-primary" onclick="tt3dSaveTokenEditor()">💾 Salvar</button>
         <button class="tt3d-btn-sec" onclick="tt3dCloseTokenEditor()">Cancelar</button>
         <button class="tt3d-btn-danger" id="tt3d-tok-del-btn" onclick="tt3dDeleteTokenFromEditor()" style="display:none">🗑️</button>
@@ -31257,6 +31334,7 @@ function opSalvarItem(pid){
     canvas.addEventListener('mousedown', _ttbOnPointerDown);
     canvas.addEventListener('mousemove', _ttbOnPointerMove);
     window.addEventListener('mouseup', _ttbOnPointerUp);
+    canvas.addEventListener('dblclick', _ttbOnDblClick);
     canvas.addEventListener('wheel', _ttbOnWheel, { passive: false });
     canvas.addEventListener('contextmenu', function(e){ e.preventDefault(); });
     // Touch (celular/tablet) — um dedo orbita, dois dedos fazem pinch-zoom.
@@ -31286,6 +31364,9 @@ function opSalvarItem(pid){
       var g = tt.tokenMeshes[id];
       if (!g || !g.userData) return;
       if (g.userData.billboard) g.userData.billboard.lookAt(tt.camera.position);
+      if (g.userData.imgAnimated && g.userData.billboard && g.userData.billboard.material.map) {
+        g.userData.billboard.material.map.needsUpdate = true; // recarrega o quadro atual do GIF
+      }
       if (g.userData.selectRing && g.userData.selectRing.material.opacity > 0.01) {
         g.userData.ringPulseT += 0.08;
         g.userData.selectRing.material.opacity = 0.5 + Math.sin(g.userData.ringPulseT) * 0.3;
@@ -31403,7 +31484,8 @@ function opSalvarItem(pid){
     if (!tt.boardMesh) return;
     // Ajusta a proporção do tabuleiro 3D pra bater com a proporção real do mapa.
     var aspect = (scene.mapW && scene.mapH) ? (scene.mapW / scene.mapH) : (4/3);
-    tt.boardH = 7.5; tt.boardW = tt.boardH * aspect;
+    var mapScale = scene.mapScale || 1; // v202609030200 — "Tamanho do mapa"
+    tt.boardH = 7.5 * mapScale; tt.boardW = tt.boardH * aspect;
     tt.boardMesh.geometry.dispose();
     tt.boardMesh.geometry = new THREE.PlaneGeometry(tt.boardW, tt.boardH);
     if (tt.frameMesh) {
@@ -31422,13 +31504,131 @@ function opSalvarItem(pid){
       tt.boardMesh.material.color.set(0x1c3d24);
       tt.boardMesh.material.needsUpdate = true;
     }
+    var scaleEl = document.getElementById('tt3d-map-scale');
+    var scaleValEl = document.getElementById('tt3d-map-scale-val');
+    if (scaleEl) scaleEl.value = mapScale;
+    if (scaleValEl) scaleValEl.textContent = mapScale.toFixed(1) + '×';
   }
+
+  window.tt3dSetMapScale = function(val) {
+    if (!_ttbIsMestre()) return;
+    var scene = _ttbActiveScene(); if (!scene) return;
+    scene.mapScale = parseFloat(val) || 1;
+    document.getElementById('tt3d-map-scale-val').textContent = scene.mapScale.toFixed(1) + '×';
+    _ttbApplyMapToBoard(scene);
+    _ttbRebuildGrid();
+    _ttbRebuildAllTokens();
+    _ttbRebuildFog();
+    _ttbRebuildDrawings();
+    _ttbSet(_ttbPath() + '/scenes/' + tt.activeSceneId + '/mapScale', scene.mapScale);
+  };
+
+  // ══════════════════════ CÉU (textura de fundo) ══════════════════════
+  window.tt3dImportSky = function(file) {
+    if (!file || !_ttbIsMestre()) return;
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      var img = new Image();
+      img.onload = function() {
+        var MAXSIDE = 2048;
+        var scale = Math.min(1, MAXSIDE / Math.max(img.width, img.height));
+        var cw = Math.round(img.width*scale), ch = Math.round(img.height*scale);
+        var canvas = document.createElement('canvas'); canvas.width=cw; canvas.height=ch;
+        canvas.getContext('2d').drawImage(img,0,0,cw,ch);
+        var dataUrl; try { dataUrl = canvas.toDataURL('image/webp',0.82); } catch(e){ dataUrl=null; }
+        if (!dataUrl || dataUrl.indexOf('data:image/webp')!==0) dataUrl = canvas.toDataURL('image/jpeg',0.82);
+        var scene = _ttbActiveScene(); if (!scene) return;
+        scene.skyUrl = dataUrl;
+        _ttbApplySky(scene);
+        _ttbSet(_ttbPath() + '/scenes/' + tt.activeSceneId + '/skyUrl', dataUrl);
+        if (typeof showToast==='function') showToast('✓ Céu aplicado', 'ok');
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+  window.tt3dRemoveSky = function() {
+    if (!_ttbIsMestre()) return;
+    var scene = _ttbActiveScene(); if (!scene) return;
+    scene.skyUrl = null;
+    _ttbApplySky(scene);
+    _ttbSet(_ttbPath() + '/scenes/' + tt.activeSceneId + '/skyUrl', null);
+  };
+  function _ttbApplySky(scene) {
+    if (scene && scene.skyUrl) {
+      new THREE.TextureLoader().load(scene.skyUrl, function(tex){
+        tex.mapping = THREE.EquirectangularReflectionMapping;
+        tt.scene.background = tex;
+        tt.scene.fog = null; // névoa de profundidade some pra não brigar visualmente com um céu personalizado
+      });
+    } else {
+      tt.scene.background = new THREE.Color(0x0a0b0d);
+      tt.scene.fog = new THREE.Fog(0x0a0b0d, 14, 32);
+    }
+  }
+
+  // ══════════════════════ MODELO 3D DE VERDADE (glTF/GLB) ══════════════════════
+  window.tt3dImportModel3D = function() {
+    if (!_ttbIsMestre()) { if (typeof showToast==='function') showToast('✕ Só o Mestre pode trocar o modelo 3D.', 'err'); return; }
+    var url = (document.getElementById('tt3d-model3d-url')||{}).value.trim();
+    if (!url) return;
+    var scene = _ttbActiveScene(); if (!scene) return;
+    scene.map3dUrl = url;
+    _ttbSet(_ttbPath() + '/scenes/' + tt.activeSceneId + '/map3dUrl', url);
+    _ttbLoadModel3D(scene);
+  };
+  window.tt3dRemoveModel3D = function() {
+    if (!_ttbIsMestre()) return;
+    var scene = _ttbActiveScene(); if (!scene) return;
+    scene.map3dUrl = null;
+    document.getElementById('tt3d-model3d-url').value = '';
+    _ttbSet(_ttbPath() + '/scenes/' + tt.activeSceneId + '/map3dUrl', null);
+    _ttbLoadModel3D(scene);
+  };
+  function _ttbLoadModel3D(scene) {
+    if (tt.modelGroup) { tt.scene.remove(tt.modelGroup); tt.modelGroup = null; }
+    var urlEl = document.getElementById('tt3d-model3d-url');
+    if (urlEl && scene && scene.map3dUrl) urlEl.value = scene.map3dUrl;
+    if (tt.boardMesh) tt.boardMesh.visible = !(scene && scene.map3dUrl);
+    if (tt.frameMesh) tt.frameMesh.visible = !(scene && scene.map3dUrl);
+    if (!scene || !scene.map3dUrl) return;
+    if (typeof THREE.GLTFLoader !== 'function') {
+      if (typeof showToast==='function') showToast('✕ Carregador de modelos 3D não disponível (sem internet pro jsdelivr?).', 'err');
+      return;
+    }
+    var loadingEl = document.getElementById('tt3d-loading'); if (loadingEl) loadingEl.style.display = 'block';
+    var loader = new THREE.GLTFLoader();
+    loader.load(scene.map3dUrl, function(gltf){
+      var model = gltf.scene;
+      var box = new THREE.Box3().setFromObject(model);
+      var size = box.getSize(new THREE.Vector3());
+      var center = box.getCenter(new THREE.Vector3());
+      model.position.sub(center);
+      var targetSize = Math.max(tt.boardW, tt.boardH);
+      var maxDim = Math.max(size.x, size.z, 0.001);
+      var scale = targetSize / maxDim;
+      model.scale.setScalar(scale);
+      model.position.y -= (box.min.y - center.y) * scale; // apoia o modelo no "chão" (y=0)
+      model.traverse(function(o){ if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      tt.modelGroup = model;
+      tt.scene.add(model);
+      if (loadingEl) loadingEl.style.display = 'none';
+      if (typeof showToast==='function') showToast('✓ Modelo 3D carregado', 'ok');
+    }, undefined, function(err){
+      console.error('[TabletopMesa3D] Falha ao carregar modelo 3D:', err);
+      if (loadingEl) loadingEl.style.display = 'none';
+      if (typeof showToast==='function') showToast('✕ Não consegui carregar esse modelo 3D. Confira se o link é direto pro .glb/.gltf e se o site permite acesso (CORS).', 'err');
+    });
+  }
+
+  window.tt3dShowHelp = function() { document.getElementById('tt3d-help-modal').style.display = 'flex'; };
+  window.tt3dHideHelp = function() { document.getElementById('tt3d-help-modal').style.display = 'none'; };
 
   // ══════════════════════ CENAS ══════════════════════
   function _ttbActiveScene() { return tt.activeSceneId ? tt.scenes[tt.activeSceneId] : null; }
 
   function _ttbNewSceneObj(name) {
-    return { name: name || 'Nova cena', mapUrl: null, mapW: 1000, mapH: 750, gridSize: 32, showGrid: true, tokens: {} };
+    return { name: name || 'Nova cena', mapUrl: null, mapW: 1000, mapH: 750, mapScale: 1, skyUrl: null, map3dUrl: null, gridSize: 32, showGrid: true, tokens: {} };
   }
 
   window.tt3dNewScene = function() {
@@ -31508,11 +31708,26 @@ function opSalvarItem(pid){
     _ttbRebuildAllTokens();
     _ttbRebuildFog();
     _ttbRebuildDrawings();
+    _ttbApplySky(scene);
+    _ttbLoadModel3D(scene);
     tt3dResetCamera();
   }
 
   // ══════════════════════ TOKENS: RENDER 3D ══════════════════════
   function _ttbTokenTexture(tok) {
+    // v202609030200 — se o token tem imagem própria (frente/verso), usa ela
+    // em vez do emoji desenhado. Como o Three.js copia o "frame atual" do
+    // <img> pra GPU sempre que map.needsUpdate=true, isso funciona pra GIF
+    // animado também (é só continuar marcando needsUpdate a cada quadro —
+    // ver isso no loop de animação, gated por tok.imgAnimated).
+    var imgSrc = (tok.facing === 'back' && tok.imgBack) ? tok.imgBack : tok.imgFront;
+    if (imgSrc) {
+      var imgEl = new Image();
+      var tex = new THREE.Texture();
+      imgEl.onload = function() { tex.image = imgEl; tex.needsUpdate = true; };
+      imgEl.src = imgSrc;
+      return tex;
+    }
     var c = document.createElement('canvas'); c.width = 128; c.height = 128;
     var ctx = c.getContext('2d');
     ctx.clearRect(0,0,128,128);
@@ -31567,6 +31782,7 @@ function opSalvarItem(pid){
 
     group.userData.tokenId = id;
     group.userData.tok = tok;
+    group.userData.imgAnimated = !!tok.imgAnimated;
     _ttbPositionTokenGroup(group, tok);
     return group;
   }
@@ -31580,11 +31796,13 @@ function opSalvarItem(pid){
   function _ttbRebuildAllTokens() {
     Object.keys(tt.tokenMeshes).forEach(function(id){ tt.scene.remove(tt.tokenMeshes[id]); });
     tt.tokenMeshes = {};
+    tt._tokenSigs = {};
     var scene = _ttbActiveScene(); if (!scene) return;
     Object.keys(scene.tokens || {}).forEach(function(id){
       var g = _ttbBuildTokenMesh(id, scene.tokens[id]);
       tt.scene.add(g);
       tt.tokenMeshes[id] = g;
+      tt._tokenSigs[id] = _ttbTokenSig(scene.tokens[id]);
     });
     _ttbRenderTokenList();
   }
@@ -31594,13 +31812,27 @@ function opSalvarItem(pid){
   // névoa, desenhar). Só ajusta o que mudou, sem recriar tudo nem mexer na
   // câmera — resolve o incômodo de "todo mundo perde a visão toda vez que
   // alguém move um token do outro lado do mapa".
+  function _ttbTokenSig(t) {
+    return [t.color, t.emoji, t.size, t.imgFront, t.imgBack, t.facing, t.imgAnimated].join('|');
+  }
+
   function _ttbSyncSceneLive() {
     var scene = _ttbActiveScene(); if (!scene) return;
     if (scene.fog && typeof scene.fog.cells === 'string') scene.fog.cells = scene.fog.cells.split('');
     var currentIds = Object.keys(scene.tokens || {});
     var meshIds = Object.keys(tt.tokenMeshes);
     var sameSet = currentIds.length === meshIds.length && currentIds.every(function(id){ return !!tt.tokenMeshes[id]; });
-    if (!sameSet) {
+    // v202609030200 — além de aparecer/sumir token, também precisa detectar
+    // se a APARÊNCIA de um token existente mudou (cor, imagem, virou de
+    // lado etc) pra quem NÃO foi quem editou — senão só quem editou via
+    // sua própria aba local via (rebuild direto) via o outro lado nunca
+    // atualiza o visual até trocar de cena.
+    var appearanceChanged = sameSet && currentIds.some(function(id){
+      var sig = _ttbTokenSig(scene.tokens[id]);
+      var changed = tt._tokenSigs && tt._tokenSigs[id] !== sig;
+      return changed;
+    });
+    if (!sameSet || appearanceChanged) {
       _ttbRebuildAllTokens();
     } else {
       currentIds.forEach(function(id){
@@ -31624,10 +31856,13 @@ function opSalvarItem(pid){
     box.innerHTML = Object.keys(tokens).map(function(id){
       var t = tokens[id];
       var canEdit = mestre || t.ownerUsername === me;
-      return '<div class="tt3d-token-item" onclick="'+(canEdit ? "tt3dOpenEditToken('"+id+"')" : '')+'" style="'+(canEdit?'':'opacity:.55;cursor:default')+'">'
+      return '<div class="tt3d-token-item" style="'+(canEdit?'':'opacity:.55')+'">'
+        + '<span onclick="'+(canEdit ? "tt3dOpenEditToken('"+id+"')" : '')+'" style="display:flex;align-items:center;gap:8px;flex:1;cursor:'+(canEdit?'pointer':'default')+'">'
         + '<span class="tt3d-token-swatch" style="background:'+(t.color||'#e33')+'"></span>'
-        + '<span>'+(t.emoji||'🎭')+' '+_ttbEsc(t.name||'Token')+'</span>'
-        + (t.ownerUsername ? '<span style="margin-left:auto;opacity:.5">'+_ttbEsc(t.ownerUsername)+'</span>' : '')
+        + '<span>'+(t.imgFront?'🖼️':(t.emoji||'🎭'))+' '+_ttbEsc(t.name||'Token')+'</span>'
+        + '</span>'
+        + (t.imgBack && canEdit ? '<span style="cursor:pointer;opacity:.7;margin-right:4px" onclick="event.stopPropagation();tt3dFlipToken(\''+id+'\')" title="Virar">🔄</span>' : '')
+        + (t.ownerUsername ? '<span style="opacity:.5;font-size:.58rem">'+_ttbEsc(t.ownerUsername)+'</span>' : '')
         + '</div>';
     }).join('') || '<p class="tt3d-hint">Nenhum token nesta cena ainda.</p>';
   }
@@ -31635,12 +31870,16 @@ function opSalvarItem(pid){
   // ══════════════════════ TOKENS: EDITOR ══════════════════════
   window.tt3dOpenAddToken = function() {
     tt.editingTokenId = null;
+    tt._editorImgFront = null; tt._editorImgBack = null;
     document.getElementById('tt3d-editor-title').textContent = '🎭 Novo token';
     document.getElementById('tt3d-tok-name').value = '';
     document.getElementById('tt3d-tok-emoji').value = '🎲';
     document.getElementById('tt3d-tok-color').value = '#e33333';
     document.getElementById('tt3d-tok-size').value = 1;
     document.getElementById('tt3d-tok-size-val').textContent = '1.0';
+    document.getElementById('tt3d-tok-animated').checked = false;
+    document.getElementById('tt3d-tok-front-preview').style.display = 'none';
+    document.getElementById('tt3d-tok-back-preview').style.display = 'none';
     document.getElementById('tt3d-tok-del-btn').style.display = 'none';
     document.getElementById('tt3d-token-editor').style.display = 'block';
   };
@@ -31649,12 +31888,16 @@ function opSalvarItem(pid){
     var scene = _ttbActiveScene(); if (!scene) return;
     var t = scene.tokens[id]; if (!t) return;
     tt.editingTokenId = id;
+    tt._editorImgFront = t.imgFront || null; tt._editorImgBack = t.imgBack || null;
     document.getElementById('tt3d-editor-title').textContent = '🎭 Editar token';
     document.getElementById('tt3d-tok-name').value = t.name || '';
     document.getElementById('tt3d-tok-emoji').value = t.emoji || '';
     document.getElementById('tt3d-tok-color').value = t.color || '#e33333';
     document.getElementById('tt3d-tok-size').value = t.size || 1;
     document.getElementById('tt3d-tok-size-val').textContent = (t.size||1).toFixed(1);
+    document.getElementById('tt3d-tok-animated').checked = !!t.imgAnimated;
+    _ttbUpdateTokenImgPreview('front', t.imgFront);
+    _ttbUpdateTokenImgPreview('back', t.imgBack);
     document.getElementById('tt3d-tok-del-btn').style.display = '';
     document.getElementById('tt3d-token-editor').style.display = 'block';
   };
@@ -31662,6 +31905,40 @@ function opSalvarItem(pid){
   window.tt3dCloseTokenEditor = function() {
     document.getElementById('tt3d-token-editor').style.display = 'none';
     tt.editingTokenId = null;
+  };
+
+  function _ttbUpdateTokenImgPreview(which, dataUrl) {
+    var box = document.getElementById('tt3d-tok-' + which + '-preview');
+    if (!box) return;
+    if (dataUrl) { box.style.display = 'flex'; box.querySelector('img').src = dataUrl; }
+    else box.style.display = 'none';
+  }
+
+  window.tt3dTokenImgUpload = function(which, file) {
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      var img = new Image();
+      img.onload = function() {
+        var MAXSIDE = 320;
+        var scale = Math.min(1, MAXSIDE / Math.max(img.width, img.height));
+        var cw = Math.round(img.width*scale), ch = Math.round(img.height*scale);
+        var canvas = document.createElement('canvas'); canvas.width=cw; canvas.height=ch;
+        canvas.getContext('2d').drawImage(img,0,0,cw,ch);
+        var dataUrl;
+        try { dataUrl = canvas.toDataURL('image/webp', 0.88); } catch(e) { dataUrl = null; }
+        if (!dataUrl || dataUrl.indexOf('data:image/webp')!==0) dataUrl = canvas.toDataURL('image/png');
+        if (which === 'front') tt._editorImgFront = dataUrl; else tt._editorImgBack = dataUrl;
+        _ttbUpdateTokenImgPreview(which, dataUrl);
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  window.tt3dTokenImgClear = function(which) {
+    if (which === 'front') tt._editorImgFront = null; else tt._editorImgBack = null;
+    _ttbUpdateTokenImgPreview(which, null);
   };
 
   document.addEventListener('input', function(e){
@@ -31676,6 +31953,9 @@ function opSalvarItem(pid){
     var emoji = document.getElementById('tt3d-tok-emoji').value.trim() || '🎲';
     var color = document.getElementById('tt3d-tok-color').value || '#e33333';
     var size = parseFloat(document.getElementById('tt3d-tok-size').value) || 1;
+    var animated = !!document.getElementById('tt3d-tok-animated').checked;
+    var imgFront = tt._editorImgFront || null;
+    var imgBack = tt._editorImgBack || null;
 
     if (tt.editingTokenId) {
       var existing = scene.tokens[tt.editingTokenId];
@@ -31684,9 +31964,12 @@ function opSalvarItem(pid){
         if (typeof showToast==='function') showToast('✕ Esse token não é seu.', 'err'); return;
       }
       existing.name = name; existing.emoji = emoji; existing.color = color; existing.size = size;
+      existing.imgFront = imgFront; existing.imgBack = imgBack; existing.imgAnimated = animated;
+      if (!imgBack) existing.facing = 'front';
     } else {
       var id = _ttbUid();
-      scene.tokens[id] = { name: name, emoji: emoji, color: color, size: size, x: 0.5, y: 0.5, ownerUsername: _ttbMyUsername() };
+      scene.tokens[id] = { name: name, emoji: emoji, color: color, size: size, x: 0.5, y: 0.5,
+        imgFront: imgFront, imgBack: imgBack, imgAnimated: animated, facing: 'front', ownerUsername: _ttbMyUsername() };
     }
     _ttbPersistScene();
     _ttbRebuildAllTokens();
@@ -31859,6 +32142,21 @@ function opSalvarItem(pid){
     if (canvas) { canvas.classList.remove('dragging-cam'); canvas.classList.remove('dragging-token'); }
   }
 
+  function _ttbOnDblClick(e) {
+    var tokenId = _ttbPickToken(e);
+    if (tokenId) tt3dFlipToken(tokenId);
+  }
+
+  window.tt3dFlipToken = function(id) {
+    var scene = _ttbActiveScene(); if (!scene) return;
+    var t = scene.tokens[id]; if (!t || !t.imgBack) return;
+    if (!_ttbIsMestre() && t.ownerUsername !== _ttbMyUsername()) { if (typeof showToast==='function') showToast('✕ Esse token não é seu.', 'err'); return; }
+    t.facing = (t.facing === 'back') ? 'front' : 'back';
+    _ttbSet(_ttbPath() + '/scenes/' + tt.activeSceneId + '/tokens/' + id + '/facing', t.facing);
+    var g = tt.tokenMeshes[id];
+    if (g && g.userData.billboard) g.userData.billboard.material.map = _ttbTokenTexture(t);
+  };
+
   function _ttbOnWheel(e) {
     e.preventDefault();
     tt.camDist *= (1 + (e.deltaY > 0 ? 0.1 : -0.1));
@@ -31927,7 +32225,12 @@ function opSalvarItem(pid){
       _ttbRenderSceneSelect();
 
       var sceneNow = _ttbActiveScene();
-      var mapChanged = sceneNow && sceneNow.mapUrl !== tt._lastLoadedMapUrl;
+      var mapChanged = sceneNow && (
+        sceneNow.mapUrl !== tt._lastLoadedMapUrl ||
+        sceneNow.map3dUrl !== tt._lastLoadedMap3dUrl ||
+        sceneNow.skyUrl !== tt._lastLoadedSkyUrl ||
+        (sceneNow.mapScale||1) !== (tt._lastLoadedMapScale||1)
+      );
 
       // v202609030100 — REFINADO: antes, QUALQUER mudança de qualquer
       // pessoa (até só mover um token do outro lado do mapa) recarregava a
@@ -31939,6 +32242,9 @@ function opSalvarItem(pid){
         if (sceneChanged || mapChanged || !tt._everLoaded) {
           tt._everLoaded = true;
           tt._lastLoadedMapUrl = sceneNow ? sceneNow.mapUrl : null;
+          tt._lastLoadedMap3dUrl = sceneNow ? sceneNow.map3dUrl : null;
+          tt._lastLoadedSkyUrl = sceneNow ? sceneNow.skyUrl : null;
+          tt._lastLoadedMapScale = sceneNow ? (sceneNow.mapScale||1) : 1;
           _ttbLoadActiveSceneIntoWorld();
         } else {
           _ttbSyncSceneLive();
