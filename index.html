@@ -3124,6 +3124,19 @@ textarea{resize:vertical;min-height:72px;border-radius:var(--r-sm)}
   position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:6;
   color:#fff; font-size:.85rem; background:rgba(0,0,0,.6); padding:14px 22px; border-radius:10px;
 }
+.tt3d-mode-row{ display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
+.tt3d-mode-btn{
+  flex:1; min-width:70px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+  color:rgba(255,255,255,.75); border-radius:7px; padding:7px 6px; font-size:.6rem; cursor:pointer;
+  font-family:inherit; transition:all .15s;
+}
+.tt3d-mode-btn:hover{ background:rgba(255,255,255,.12); }
+.tt3d-mode-btn.active{ background:linear-gradient(135deg,#7ee0ff,#3a8db8); color:#04202a; font-weight:700; border-color:transparent; }
+.tt3d-measure-label{
+  position:absolute; z-index:4; pointer-events:none; background:rgba(0,0,0,.75); color:#ffe066;
+  border:1px solid rgba(255,224,102,.5); border-radius:6px; padding:4px 10px; font-size:.7rem;
+  font-family:'Share Tech Mono',monospace; white-space:nowrap; transform:translate(-50%,-140%);
+}
 @media (max-width:640px){
   .tt3d-sidebar{ width:200px; }
   .tt3d-sidebar-toggle{ right:224px; }
@@ -7658,11 +7671,56 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       </div>
 
       <div class="tt3d-sec">
+        <div class="tt3d-sec-title">🎯 Modo</div>
+        <div class="tt3d-mode-row">
+          <button class="tt3d-mode-btn active" id="tt3d-mode-select" onclick="tt3dSetMode('select')" title="Selecionar/mover tokens">🖐️ Mover</button>
+          <button class="tt3d-mode-btn" id="tt3d-mode-measure" onclick="tt3dSetMode('measure')" title="Medir distância">📏 Medir</button>
+          <button class="tt3d-mode-btn" id="tt3d-mode-ping" onclick="tt3dSetMode('ping')" title="Marcar um ponto pra todo mundo ver">📍 Marcar</button>
+          <button class="tt3d-mode-btn" id="tt3d-mode-draw" onclick="tt3dSetMode('draw')" title="Desenhar no mapa" style="display:none">✏️ Desenhar</button>
+        </div>
+        <p class="tt3d-hint" id="tt3d-mode-hint">Clique e arraste um token pra movê-lo.</p>
+      </div>
+
+      <div class="tt3d-sec" id="tt3d-sec-draw" style="display:none">
+        <div class="tt3d-sec-title">✏️ Desenho</div>
+        <div class="tt3d-row"><span>Cor:</span><input type="color" id="tt3d-draw-color" value="#ffe066"></div>
+        <button class="tt3d-btn-sec" onclick="tt3dClearDrawings()">🧹 Limpar desenhos da cena</button>
+      </div>
+
+      <div class="tt3d-sec" id="tt3d-sec-fog" style="display:none">
+        <div class="tt3d-sec-title">🌫️ Névoa de guerra</div>
+        <label class="tt3d-row"><input type="checkbox" id="tt3d-fog-toggle" onchange="tt3dToggleFog(this.checked)"> Ativar névoa nesta cena</label>
+        <div class="tt3d-mode-row" id="tt3d-fog-brush-row" style="display:none">
+          <button class="tt3d-mode-btn active" id="tt3d-fog-reveal" onclick="tt3dSetFogBrush('reveal')">🔆 Revelar</button>
+          <button class="tt3d-mode-btn" id="tt3d-fog-hide" onclick="tt3dSetFogBrush('hide')">🌑 Esconder</button>
+        </div>
+        <div class="tt3d-row" id="tt3d-fog-size-row" style="display:none">Pincel <input type="range" id="tt3d-fog-brush-size" min="1" max="6" value="2" oninput="document.getElementById('tt3d-fog-brush-size-val').textContent=this.value"><span id="tt3d-fog-brush-size-val">2</span></div>
+        <div class="tt3d-row" id="tt3d-fog-actions-row" style="display:none;gap:8px">
+          <button class="tt3d-btn-sec" onclick="tt3dFogFill(true)" style="flex:1">🌑 Cobrir tudo</button>
+          <button class="tt3d-btn-sec" onclick="tt3dFogFill(false)" style="flex:1">🔆 Revelar tudo</button>
+        </div>
+        <p class="tt3d-hint">Só o Mestre vê e pinta a névoa. Players veem só as áreas já reveladas.</p>
+      </div>
+
+      <div class="tt3d-sec">
+        <div class="tt3d-sec-title">⚔️ Iniciativa</div>
+        <div id="tt3d-initiative-list" class="tt3d-token-list"></div>
+        <div class="tt3d-row" style="gap:6px">
+          <input type="text" id="tt3d-init-name" placeholder="Nome" style="flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:6px 8px;color:#fff;font-family:inherit;font-size:.64rem">
+          <input type="number" id="tt3d-init-val" placeholder="Valor" style="width:56px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:6px 8px;color:#fff;font-family:inherit;font-size:.64rem">
+        </div>
+        <button class="tt3d-btn-sec" style="margin-top:6px" onclick="tt3dAddInitiative()">➕ Adicionar à iniciativa</button>
+        <button class="tt3d-btn-primary" style="margin-top:6px" onclick="tt3dNextTurn()">▶ Próximo turno</button>
+      </div>
+
+      <div class="tt3d-sec">
         <div class="tt3d-sec-title">🎥 Câmera</div>
         <p class="tt3d-hint">Arraste pra girar a mesa · roda do mouse pra zoom · botão direito arrasta pra mover o tabuleiro.</p>
         <button class="tt3d-btn-sec" onclick="tt3dResetCamera()">🎯 Centralizar câmera</button>
       </div>
     </div>
+
+    <div class="tt3d-measure-label" id="tt3d-measure-label" style="display:none"></div>
 
     <button class="tt3d-sidebar-toggle" id="tt3d-sidebar-toggle" onclick="tt3dToggleSidebar()" title="Esconder/mostrar painel">◀</button>
 
@@ -31092,7 +31150,15 @@ function opSalvarItem(pid){
     lastTokenWriteAt: 0,
     editingTokenId: null, // null = criando novo
     unsubTabletop: null,
-    boardW: 10, boardH: 7.5 // tamanho do tabuleiro no mundo 3D (unidades arbitrárias)
+    boardW: 10, boardH: 7.5, // tamanho do tabuleiro no mundo 3D (unidades arbitrárias)
+    // v202609030100 — refino: modos de interação, régua, névoa, desenho, câmera suave
+    mode: 'select',
+    camDistTarget: 9, camThetaTarget: Math.PI/4, camPhiTarget: 0.95, camAnimating: false,
+    fogPaintActive: false, fogBrush: 'reveal',
+    fogMesh: null, fogCanvasEl: null, fogCtx: null, fogTexture: null,
+    measureLine: null, measureStartPt: null,
+    drawPreviewLine: null, currentStroke: null, drawingMeshes: [],
+    frameMesh: null
   };
 
   function _ttbPath() {
@@ -31149,23 +31215,40 @@ function opSalvarItem(pid){
     var canvas = document.getElementById('tabletop3d-canvas');
     tt.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false });
     tt.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    tt.renderer.shadowMap.enabled = true;
+    tt.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     tt.scene = new THREE.Scene();
     tt.scene.background = new THREE.Color(0x0a0b0d);
+    tt.scene.fog = new THREE.Fog(0x0a0b0d, 14, 32); // v202609030100 — profundidade: mesa "some" suavemente longe da câmera, em vez de cortar seco
 
     tt.camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
     _ttbUpdateCameraFromSpherical();
 
     var hemi = new THREE.HemisphereLight(0xffffff, 0x222233, 0.9);
     tt.scene.add(hemi);
-    var dir = new THREE.DirectionalLight(0xffffff, 0.9);
+    var dir = new THREE.DirectionalLight(0xffffff, 1.0);
     dir.position.set(5, 10, 6);
+    dir.castShadow = true;
+    dir.shadow.mapSize.set(1024, 1024);
+    dir.shadow.camera.left = -12; dir.shadow.camera.right = 12;
+    dir.shadow.camera.top = 12; dir.shadow.camera.bottom = -12;
     tt.scene.add(dir);
+
+    // v202609030100 — moldura de madeira embaixo do mapa, pra parecer uma
+    // mesa de verdade em vez de uma imagem flutuando no vazio.
+    var frameGeo = new THREE.BoxGeometry(tt.boardW + 1.2, 0.25, tt.boardH + 1.2);
+    var frameMat = new THREE.MeshStandardMaterial({ color: 0x3a2417, roughness: 0.85 });
+    tt.frameMesh = new THREE.Mesh(frameGeo, frameMat);
+    tt.frameMesh.position.y = -0.14;
+    tt.frameMesh.receiveShadow = true;
+    tt.scene.add(tt.frameMesh);
 
     // Tabuleiro placeholder (sem mapa importado ainda) — feltro verde de mesa.
     var boardGeo = new THREE.PlaneGeometry(tt.boardW, tt.boardH);
     var boardMat = new THREE.MeshStandardMaterial({ color: 0x1c3d24, roughness: 0.9 });
     tt.boardMesh = new THREE.Mesh(boardGeo, boardMat);
     tt.boardMesh.rotation.x = -Math.PI/2;
+    tt.boardMesh.receiveShadow = true;
     tt.scene.add(tt.boardMesh);
 
     _ttbRebuildGrid();
@@ -31197,11 +31280,28 @@ function opSalvarItem(pid){
   function _ttbAnimate() {
     requestAnimationFrame(_ttbAnimate);
     if (!tt.open || !tt.renderer) return;
-    // Billboards dos tokens sempre de frente pra câmera.
+    // Billboards dos tokens sempre de frente pra câmera + pulso de brilho no
+    // aro do token selecionado (fica claro qual token você está segurando).
     Object.keys(tt.tokenMeshes).forEach(function(id){
       var g = tt.tokenMeshes[id];
-      if (g && g.userData && g.userData.billboard) g.userData.billboard.lookAt(tt.camera.position);
+      if (!g || !g.userData) return;
+      if (g.userData.billboard) g.userData.billboard.lookAt(tt.camera.position);
+      if (g.userData.selectRing && g.userData.selectRing.material.opacity > 0.01) {
+        g.userData.ringPulseT += 0.08;
+        g.userData.selectRing.material.opacity = 0.5 + Math.sin(g.userData.ringPulseT) * 0.3;
+      }
     });
+    // Câmera com "inércia" suave até o alvo do último tt3dResetCamera().
+    if (tt.camAnimating) {
+      var k = 0.12;
+      tt.camDist += (tt.camDistTarget - tt.camDist) * k;
+      tt.camTheta += (tt.camThetaTarget - tt.camTheta) * k;
+      tt.camPhi += (tt.camPhiTarget - tt.camPhi) * k;
+      tt.camTarget.x += (0 - tt.camTarget.x) * k;
+      tt.camTarget.z += (0 - tt.camTarget.z) * k;
+      _ttbUpdateCameraFromSpherical();
+      if (Math.abs(tt.camDist - tt.camDistTarget) < 0.02) tt.camAnimating = false;
+    }
     tt.renderer.render(tt.scene, tt.camera);
   }
 
@@ -31217,10 +31317,9 @@ function opSalvarItem(pid){
   }
 
   window.tt3dResetCamera = function() {
-    tt.camTarget = { x: 0, y: 0, z: 0 };
-    tt.camDist = Math.max(tt.boardW, tt.boardH) * 1.15;
-    tt.camTheta = Math.PI/4; tt.camPhi = 0.95;
-    _ttbUpdateCameraFromSpherical();
+    tt.camDistTarget = Math.max(tt.boardW, tt.boardH) * 1.15;
+    tt.camThetaTarget = Math.PI/4; tt.camPhiTarget = 0.95;
+    tt.camAnimating = true;
   };
 
   // ══════════════════════ GRADE (GRID) ══════════════════════
@@ -31307,6 +31406,10 @@ function opSalvarItem(pid){
     tt.boardH = 7.5; tt.boardW = tt.boardH * aspect;
     tt.boardMesh.geometry.dispose();
     tt.boardMesh.geometry = new THREE.PlaneGeometry(tt.boardW, tt.boardH);
+    if (tt.frameMesh) {
+      tt.frameMesh.geometry.dispose();
+      tt.frameMesh.geometry = new THREE.BoxGeometry(tt.boardW + 1.2, 0.25, tt.boardH + 1.2);
+    }
     if (scene.mapUrl) {
       new THREE.TextureLoader().load(scene.mapUrl, function(tex){
         tex.colorSpace = THREE.SRGBColorSpace || tex.colorSpace;
@@ -31381,17 +31484,30 @@ function opSalvarItem(pid){
       var el = document.getElementById(id); if (el) el.style.display = mestre ? '' : 'none';
     });
     sel.disabled = !mestre;
+    _ttbUpdatePermissionUI();
   }
 
   function _ttbLoadActiveSceneIntoWorld() {
     var scene = _ttbActiveScene();
     if (!tt.renderer || !scene) return;
+    // v202609030100 — normaliza scene.fog.cells: no Firebase vem como string
+    // (mais compacto pra trafegar), aqui dentro trabalhamos com array de
+    // caracteres pra editar célula por célula sem recriar a string toda hora.
+    if (scene.fog && typeof scene.fog.cells === 'string') scene.fog.cells = scene.fog.cells.split('');
+    if (!scene.fog) scene.fog = _ttbDefaultFog();
     _ttbApplyMapToBoard(scene);
     document.getElementById('tt3d-grid-toggle').checked = !!scene.showGrid;
     document.getElementById('tt3d-grid-size').value = scene.gridSize || 32;
     document.getElementById('tt3d-grid-size-val').textContent = scene.gridSize || 32;
+    document.getElementById('tt3d-fog-toggle').checked = !!scene.fog.enabled;
+    document.getElementById('tt3d-fog-brush-row').style.display = scene.fog.enabled ? 'flex' : 'none';
+    document.getElementById('tt3d-fog-size-row').style.display = scene.fog.enabled ? 'flex' : 'none';
+    document.getElementById('tt3d-fog-actions-row').style.display = scene.fog.enabled ? 'flex' : 'none';
+    tt.fogPaintActive = !!scene.fog.enabled;
     _ttbRebuildGrid();
     _ttbRebuildAllTokens();
+    _ttbRebuildFog();
+    _ttbRebuildDrawings();
     tt3dResetCamera();
   }
 
@@ -31410,18 +31526,37 @@ function opSalvarItem(pid){
   function _ttbBuildTokenMesh(id, tok) {
     var group = new THREE.Group();
     var size = 0.55 * (tok.size || 1);
+
+    // v202609030100 — sombra de contato falsa (disco escuro semi-transparente
+    // sob o token) — barato e deixa o token "grudado" no chão em vez de
+    // parecer flutuando, mesmo de ângulos de câmera mais baixos.
+    var shadowGeo = new THREE.CircleGeometry(size*1.12, 24);
+    var shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false });
+    var shadowDisc = new THREE.Mesh(shadowGeo, shadowMat);
+    shadowDisc.rotation.x = -Math.PI/2; shadowDisc.position.y = 0.015;
+    group.add(shadowDisc);
+
     var baseGeo = new THREE.CylinderGeometry(size, size, 0.12, 24);
-    var baseMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(tok.color || '#e33333'), roughness: 0.5 });
+    var baseMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(tok.color || '#e33333'), roughness: 0.4, metalness: 0.15 });
     var base = new THREE.Mesh(baseGeo, baseMat);
     base.position.y = 0.06;
+    base.castShadow = true;
     group.add(base);
 
+    // Aro dourado fino na borda da base — acabamento de "peça de tabuleiro".
+    var trimGeo = new THREE.TorusGeometry(size, 0.025, 8, 32);
+    var trimMat = new THREE.MeshStandardMaterial({ color: 0xd8b45c, roughness: 0.3, metalness: 0.6 });
+    var trim = new THREE.Mesh(trimGeo, trimMat);
+    trim.rotation.x = Math.PI/2; trim.position.y = 0.12;
+    group.add(trim);
+
     var ringGeo = new THREE.RingGeometry(size*1.02, size*1.16, 32);
-    var ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.0 });
+    var ringMat = new THREE.MeshBasicMaterial({ color: 0x7ee0ff, side: THREE.DoubleSide, transparent: true, opacity: 0.0 });
     var ring = new THREE.Mesh(ringGeo, ringMat);
     ring.rotation.x = -Math.PI/2; ring.position.y = 0.02;
     group.add(ring);
     group.userData.selectRing = ring;
+    group.userData.ringPulseT = 0;
 
     var billGeo = new THREE.PlaneGeometry(size*1.3, size*1.3);
     var billMat = new THREE.MeshBasicMaterial({ map: _ttbTokenTexture(tok), transparent: true });
@@ -31452,6 +31587,32 @@ function opSalvarItem(pid){
       tt.tokenMeshes[id] = g;
     });
     _ttbRenderTokenList();
+  }
+
+  // v202609030100 — atualização "ao vivo" leve: usada quando alguém mexe em
+  // algo na MESMA cena que eu já tenho carregada (mover token, pintar
+  // névoa, desenhar). Só ajusta o que mudou, sem recriar tudo nem mexer na
+  // câmera — resolve o incômodo de "todo mundo perde a visão toda vez que
+  // alguém move um token do outro lado do mapa".
+  function _ttbSyncSceneLive() {
+    var scene = _ttbActiveScene(); if (!scene) return;
+    if (scene.fog && typeof scene.fog.cells === 'string') scene.fog.cells = scene.fog.cells.split('');
+    var currentIds = Object.keys(scene.tokens || {});
+    var meshIds = Object.keys(tt.tokenMeshes);
+    var sameSet = currentIds.length === meshIds.length && currentIds.every(function(id){ return !!tt.tokenMeshes[id]; });
+    if (!sameSet) {
+      _ttbRebuildAllTokens();
+    } else {
+      currentIds.forEach(function(id){
+        if (id === tt.dragTokenId) return; // não pisa no meu próprio drag em andamento
+        var g = tt.tokenMeshes[id];
+        if (g) _ttbPositionTokenGroup(g, scene.tokens[id]);
+      });
+      _ttbRenderTokenList();
+    }
+    if (scene.fog && scene.fog.enabled) { _ttbEnsureFogMesh(); tt.fogMesh.visible = true; _ttbRedrawFogCanvas(scene); }
+    else if (tt.fogMesh) { tt.fogMesh.visible = false; }
+    _ttbRebuildDrawings();
   }
 
   function _ttbRenderTokenList() {
@@ -31582,7 +31743,16 @@ function opSalvarItem(pid){
   function _ttbOnPointerDown(e) {
     tt.lastPointer = { x: e.clientX, y: e.clientY };
     var canvas = document.getElementById('tabletop3d-canvas');
-    if (e.button === 0) {
+
+    if (e.button === 2) { tt.dragMode = 'pan'; canvas.classList.add('dragging-cam'); return; }
+    if (e.button !== 0) return;
+
+    // Atalho universal: Shift+arrastar sempre orbita a câmera, não importa
+    // o modo ativo (medir/marcar/desenhar/pintar névoa) — sem isso, ficar
+    // preso num modo sem conseguir girar a câmera seria bem chato.
+    if (e.shiftKey) { tt.dragMode = 'orbit'; canvas.classList.add('dragging-cam'); return; }
+
+    if (tt.mode === 'select') {
       var tokenId = _ttbPickToken(e);
       if (tokenId) {
         var scene = _ttbActiveScene();
@@ -31596,11 +31766,27 @@ function opSalvarItem(pid){
           return;
         }
       }
+      if (tt.fogPaintActive && _ttbIsMestre()) {
+        var pt0 = _ttbPickBoardPoint(e);
+        if (pt0) { tt.dragMode = 'fogpaint'; _ttbPaintFogAtPoint(pt0); return; }
+      }
       tt.dragMode = 'orbit';
       canvas.classList.add('dragging-cam');
-    } else if (e.button === 2) {
-      tt.dragMode = 'pan';
-      canvas.classList.add('dragging-cam');
+    } else if (tt.mode === 'measure') {
+      var ptM = _ttbPickBoardPoint(e);
+      if (!ptM) return;
+      tt.dragMode = 'measure';
+      tt.measureStartPt = ptM;
+      _ttbEnsureMeasureLine();
+    } else if (tt.mode === 'ping') {
+      var ptP = _ttbPickBoardPoint(e);
+      if (ptP) _ttbFirePing(ptP);
+    } else if (tt.mode === 'draw' && _ttbIsMestre()) {
+      var ptD = _ttbPickBoardPoint(e);
+      if (!ptD) return;
+      tt.dragMode = 'draw';
+      tt.currentStroke = [ptD.clone()];
+      _ttbEnsureDrawPreviewLine();
     }
   }
 
@@ -31640,6 +31826,15 @@ function opSalvarItem(pid){
         _ttbSet(_ttbPath() + '/scenes/' + tt.activeSceneId + '/tokens/' + tt.dragTokenId + '/x', nx);
         _ttbSet(_ttbPath() + '/scenes/' + tt.activeSceneId + '/tokens/' + tt.dragTokenId + '/y', ny);
       }
+    } else if (tt.dragMode === 'fogpaint') {
+      var ptF = _ttbPickBoardPoint(e);
+      if (ptF) _ttbPaintFogAtPoint(ptF);
+    } else if (tt.dragMode === 'measure') {
+      var ptE = _ttbPickBoardPoint(e);
+      if (ptE) _ttbUpdateMeasureLine(tt.measureStartPt, ptE);
+    } else if (tt.dragMode === 'draw') {
+      var ptDr = _ttbPickBoardPoint(e);
+      if (ptDr) { tt.currentStroke.push(ptDr.clone()); _ttbUpdateDrawPreviewLine(); }
     }
   }
 
@@ -31654,6 +31849,11 @@ function opSalvarItem(pid){
       }
       var g = tt.tokenMeshes[tt.dragTokenId];
       if (g && g.userData.selectRing) g.userData.selectRing.material.opacity = 0.0;
+    } else if (tt.dragMode === 'fogpaint') {
+      var sceneF = _ttbActiveScene();
+      if (sceneF && sceneF.fog) _ttbSet(_ttbPath() + '/scenes/' + tt.activeSceneId + '/fog/cells', sceneF.fog.cells.join(''));
+    } else if (tt.dragMode === 'draw' && tt.currentStroke && tt.currentStroke.length > 1) {
+      _ttbCommitStroke();
     }
     tt.dragMode = null; tt.dragTokenId = null;
     if (canvas) { canvas.classList.remove('dragging-cam'); canvas.classList.remove('dragging-token'); }
@@ -31721,20 +31921,40 @@ function opSalvarItem(pid){
         return;
       }
       tt.scenes = v.scenes;
-      tt.activeSceneId = (v.activeSceneId && v.scenes[v.activeSceneId]) ? v.activeSceneId : Object.keys(v.scenes)[0];
+      var newActiveId = (v.activeSceneId && v.scenes[v.activeSceneId]) ? v.activeSceneId : Object.keys(v.scenes)[0];
+      var sceneChanged = newActiveId !== tt.activeSceneId;
+      tt.activeSceneId = newActiveId;
       _ttbRenderSceneSelect();
-      // Não pisa em cima de um drag local em andamento.
+
+      var sceneNow = _ttbActiveScene();
+      var mapChanged = sceneNow && sceneNow.mapUrl !== tt._lastLoadedMapUrl;
+
+      // v202609030100 — REFINADO: antes, QUALQUER mudança de qualquer
+      // pessoa (até só mover um token do outro lado do mapa) recarregava a
+      // cena inteira e resetava a câmera de todo mundo — bem incômodo.
+      // Agora só faz reload completo (com reset de câmera) quando a CENA
+      // ou o MAPA de verdade mudaram; movimentos de token, névoa e
+      // desenhos só atualizam ao vivo sem mexer na sua visão da câmera.
       if (tt.dragMode !== 'token') {
-        _ttbLoadActiveSceneIntoWorld();
+        if (sceneChanged || mapChanged || !tt._everLoaded) {
+          tt._everLoaded = true;
+          tt._lastLoadedMapUrl = sceneNow ? sceneNow.mapUrl : null;
+          _ttbLoadActiveSceneIntoWorld();
+        } else {
+          _ttbSyncSceneLive();
+        }
       } else {
-        // Durante um drag, só atualiza os OUTROS tokens (não o que estou arrastando).
-        var scene = _ttbActiveScene();
-        if (scene) Object.keys(scene.tokens || {}).forEach(function(id){
+        // Durante um drag de token local, só atualiza os OUTROS tokens.
+        if (sceneNow) Object.keys(sceneNow.tokens || {}).forEach(function(id){
           if (id === tt.dragTokenId) return;
           var g = tt.tokenMeshes[id];
-          if (g) _ttbPositionTokenGroup(g, scene.tokens[id]);
+          if (g) _ttbPositionTokenGroup(g, sceneNow.tokens[id]);
         });
       }
+
+      tt.initiative = v.initiative || { entries: {}, currentId: null };
+      _ttbRenderInitiative();
+      if (v.pings) _ttbProcessRemotePings(v.pings);
     }, function(err) {
       console.warn('[TabletopMesa3D] Falha ao sincronizar (permissão do Firebase?):', err);
       if (typeof showToast === 'function') showToast('⚠ Mesa 3D sem sincronização (checa as regras do Firebase pro caminho "campanhas/.../live/tabletop" e "Live/tabletop").', 'err');
@@ -31742,6 +31962,305 @@ function opSalvarItem(pid){
   }
 
   function _ttbEsc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  // ══════════════════════ MODOS (mover / medir / marcar / desenhar) ══════════════════════
+  var MODE_HINTS = {
+    select: 'Clique e arraste um token pra movê-lo. Segure Shift pra girar a câmera em qualquer modo.',
+    measure: 'Clique e arraste no mapa pra medir a distância em quadrados.',
+    ping: 'Clique em qualquer ponto do mapa pra apontar algo pra todo mundo (some sozinho).',
+    draw: 'Clique e arraste pra desenhar no mapa. Só o Mestre vê esse botão.'
+  };
+
+  window.tt3dSetMode = function(mode) {
+    tt.mode = mode;
+    ['select','measure','ping','draw'].forEach(function(m){
+      var btn = document.getElementById('tt3d-mode-' + m);
+      if (btn) btn.classList.toggle('active', m === mode);
+    });
+    var hint = document.getElementById('tt3d-mode-hint');
+    if (hint) hint.textContent = MODE_HINTS[mode] || '';
+    var lbl = document.getElementById('tt3d-measure-label');
+    if (lbl && mode !== 'measure') lbl.style.display = 'none';
+  };
+
+  function _ttbUpdatePermissionUI() {
+    var mestre = _ttbIsMestre();
+    var drawBtn = document.getElementById('tt3d-mode-draw');
+    if (drawBtn) drawBtn.style.display = mestre ? '' : 'none';
+    var secFog = document.getElementById('tt3d-sec-fog');
+    if (secFog) secFog.style.display = mestre ? '' : 'none';
+    var secDraw = document.getElementById('tt3d-sec-draw');
+    if (secDraw) secDraw.style.display = mestre ? '' : 'none';
+    if (!mestre && tt.mode === 'draw') tt3dSetMode('select');
+  }
+
+  // ══════════════════════ RÉGUA DE DISTÂNCIA (local, não sincroniza) ══════════════════════
+  function _ttbEnsureMeasureLine() {
+    if (tt.measureLine) return;
+    var geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+    var mat = new THREE.LineBasicMaterial({ color: 0xffe066, linewidth: 2 });
+    tt.measureLine = new THREE.Line(geo, mat);
+    tt.measureLine.position.y = 0.05;
+    tt.scene.add(tt.measureLine);
+  }
+
+  function _ttbUpdateMeasureLine(startPt, endPt) {
+    if (!tt.measureLine) return;
+    var pts = [ new THREE.Vector3(startPt.x, 0.05, startPt.z), new THREE.Vector3(endPt.x, 0.05, endPt.z) ];
+    tt.measureLine.geometry.setFromPoints(pts);
+    var scene = _ttbActiveScene();
+    var gridSize = (scene && scene.gridSize) || 32;
+    var pxPerUnitX = (scene && scene.mapW ? scene.mapW : 1000) / tt.boardW;
+    var distUnits3d = Math.hypot(endPt.x - startPt.x, endPt.z - startPt.z);
+    var distPxMapa = distUnits3d * pxPerUnitX;
+    var squares = distPxMapa / gridSize;
+    var label = document.getElementById('tt3d-measure-label');
+    if (label) {
+      label.style.display = 'block';
+      label.textContent = squares.toFixed(1) + ' quadrados (≈' + Math.round(squares * 1.5) + 'm)';
+      var midWorld = new THREE.Vector3((startPt.x+endPt.x)/2, 0.1, (startPt.z+endPt.z)/2);
+      var proj = midWorld.clone().project(tt.camera);
+      var canvas = document.getElementById('tabletop3d-canvas');
+      var r = canvas.getBoundingClientRect();
+      label.style.left = (r.left + (proj.x*0.5+0.5)*r.width) + 'px';
+      label.style.top = (r.top + (1-(proj.y*0.5+0.5))*r.height) + 'px';
+    }
+  }
+
+  // ══════════════════════ MARCAR (ping temporário, sincronizado) ══════════════════════
+  var _ttbSeenPings = {};
+  function _ttbFirePing(pt) {
+    var id = _ttbUid();
+    _ttbSeenPings[id] = true; // evita eu mesmo re-disparar meu próprio ping quando o echo do Firebase voltar
+    var nx = Math.max(0, Math.min(1, pt.x / tt.boardW + 0.5));
+    var ny = Math.max(0, Math.min(1, pt.z / tt.boardH + 0.5));
+    _ttbSpawnPingVisual(nx, ny);
+    _ttbSet(_ttbPath() + '/pings/' + id, { x: nx, y: ny, by: _ttbMyUsername(), ts: Date.now() });
+    setTimeout(function(){ _ttbSet(_ttbPath() + '/pings/' + id, null); }, 3200);
+  }
+
+  function _ttbProcessRemotePings(pings) {
+    Object.keys(pings).forEach(function(id){
+      if (_ttbSeenPings[id]) return;
+      _ttbSeenPings[id] = true;
+      var p = pings[id];
+      if (p) _ttbSpawnPingVisual(p.x, p.y);
+    });
+  }
+
+  function _ttbSpawnPingVisual(nx, ny) {
+    var x = (nx - 0.5) * tt.boardW, z = (ny - 0.5) * tt.boardH;
+    var geo = new THREE.RingGeometry(0.05, 0.18, 24);
+    var mat = new THREE.MeshBasicMaterial({ color: 0xffb020, transparent: true, opacity: 1, side: THREE.DoubleSide });
+    var ring = new THREE.Mesh(geo, mat);
+    ring.rotation.x = -Math.PI/2; ring.position.set(x, 0.08, z);
+    tt.scene.add(ring);
+    var start = performance.now();
+    (function anim(){
+      var t = (performance.now() - start) / 1400;
+      if (t >= 1) { tt.scene.remove(ring); ring.geometry.dispose(); ring.material.dispose(); return; }
+      ring.scale.setScalar(1 + t * 6);
+      ring.material.opacity = 1 - t;
+      requestAnimationFrame(anim);
+    })();
+  }
+
+  // ══════════════════════ DESENHO NO MAPA (Mestre) ══════════════════════
+  function _ttbEnsureDrawPreviewLine() {
+    var geo = new THREE.BufferGeometry().setFromPoints(tt.currentStroke);
+    var color = (document.getElementById('tt3d-draw-color')||{}).value || '#ffe066';
+    var mat = new THREE.LineBasicMaterial({ color: new THREE.Color(color) });
+    tt.drawPreviewLine = new THREE.Line(geo, mat);
+    tt.drawPreviewLine.position.y = 0.04;
+    tt.scene.add(tt.drawPreviewLine);
+  }
+  function _ttbUpdateDrawPreviewLine() {
+    if (tt.drawPreviewLine) tt.drawPreviewLine.geometry.setFromPoints(tt.currentStroke);
+  }
+  function _ttbCommitStroke() {
+    var scene = _ttbActiveScene(); if (!scene) return;
+    var color = (document.getElementById('tt3d-draw-color')||{}).value || '#ffe066';
+    var pts = tt.currentStroke.map(function(p){
+      return { x: Math.max(0,Math.min(1, p.x/tt.boardW + 0.5)), y: Math.max(0,Math.min(1, p.z/tt.boardH + 0.5)) };
+    });
+    var id = _ttbUid();
+    scene.drawings = scene.drawings || {};
+    scene.drawings[id] = { color: color, points: pts };
+    _ttbSet(_ttbPath() + '/scenes/' + tt.activeSceneId + '/drawings/' + id, scene.drawings[id]);
+    if (tt.drawPreviewLine) { tt.scene.remove(tt.drawPreviewLine); tt.drawPreviewLine = null; }
+    tt.currentStroke = null;
+    _ttbRebuildDrawings();
+  }
+  window.tt3dClearDrawings = function() {
+    if (!_ttbIsMestre()) return;
+    if (!confirm('Apagar todos os desenhos desta cena?')) return;
+    var scene = _ttbActiveScene(); if (!scene) return;
+    scene.drawings = {};
+    _ttbSet(_ttbPath() + '/scenes/' + tt.activeSceneId + '/drawings', {});
+    _ttbRebuildDrawings();
+  };
+  function _ttbRebuildDrawings() {
+    if (tt.drawingMeshes) tt.drawingMeshes.forEach(function(m){ tt.scene.remove(m); });
+    tt.drawingMeshes = [];
+    var scene = _ttbActiveScene(); if (!scene || !scene.drawings) return;
+    Object.keys(scene.drawings).forEach(function(id){
+      var d = scene.drawings[id];
+      if (!d.points || d.points.length < 2) return;
+      var pts3d = d.points.map(function(p){ return new THREE.Vector3((p.x-0.5)*tt.boardW, 0.04, (p.y-0.5)*tt.boardH); });
+      var geo = new THREE.BufferGeometry().setFromPoints(pts3d);
+      var mat = new THREE.LineBasicMaterial({ color: new THREE.Color(d.color || '#ffe066'), linewidth: 2 });
+      var line = new THREE.Line(geo, mat);
+      tt.scene.add(line);
+      tt.drawingMeshes.push(line);
+    });
+  }
+
+  // ══════════════════════ NÉVOA DE GUERRA (Mestre) ══════════════════════
+  function _ttbDefaultFog() {
+    var cols = 32, rows = 24;
+    return { enabled: false, cols: cols, rows: rows, cells: new Array(cols*rows).fill('1') };
+  }
+
+  window.tt3dToggleFog = function(checked) {
+    if (!_ttbIsMestre()) return;
+    var scene = _ttbActiveScene(); if (!scene) return;
+    if (!scene.fog) scene.fog = _ttbDefaultFog();
+    scene.fog.enabled = !!checked;
+    _ttbPersistFogMeta(scene);
+    _ttbRebuildFog();
+    document.getElementById('tt3d-fog-brush-row').style.display = checked ? 'flex' : 'none';
+    document.getElementById('tt3d-fog-size-row').style.display = checked ? 'flex' : 'none';
+    document.getElementById('tt3d-fog-actions-row').style.display = checked ? 'flex' : 'none';
+    tt.fogPaintActive = checked;
+  };
+
+  function _ttbPersistFogMeta(scene) {
+    _ttbSet(_ttbPath() + '/scenes/' + tt.activeSceneId + '/fog', {
+      enabled: scene.fog.enabled, cols: scene.fog.cols, rows: scene.fog.rows,
+      cells: Array.isArray(scene.fog.cells) ? scene.fog.cells.join('') : scene.fog.cells
+    });
+  }
+
+  window.tt3dSetFogBrush = function(mode) {
+    tt.fogBrush = mode;
+    ['reveal','hide'].forEach(function(m){
+      var b = document.getElementById('tt3d-fog-' + m);
+      if (b) b.classList.toggle('active', m === mode);
+    });
+  };
+
+  window.tt3dFogFill = function(hideAll) {
+    if (!_ttbIsMestre()) return;
+    var scene = _ttbActiveScene(); if (!scene || !scene.fog) return;
+    scene.fog.cells = new Array(scene.fog.cols * scene.fog.rows).fill(hideAll ? '1' : '0');
+    _ttbPersistFogMeta(scene);
+    _ttbRedrawFogCanvas(scene);
+  };
+
+  function _ttbPaintFogAtPoint(pt) {
+    var scene = _ttbActiveScene(); if (!scene || !scene.fog || !scene.fog.enabled) return;
+    var nx = pt.x / tt.boardW + 0.5, ny = pt.z / tt.boardH + 0.5;
+    if (nx < 0 || nx > 1 || ny < 0 || ny > 1) return;
+    var cols = scene.fog.cols, rows = scene.fog.rows;
+    var cx = Math.floor(nx * cols), cy = Math.floor(ny * rows);
+    var brush = parseInt((document.getElementById('tt3d-fog-brush-size')||{}).value || '2', 10);
+    var val = (tt.fogBrush === 'hide') ? '1' : '0';
+    for (var dy=-brush; dy<=brush; dy++) {
+      for (var dx=-brush; dx<=brush; dx++) {
+        if (dx*dx+dy*dy > brush*brush) continue;
+        var xx = cx+dx, yy = cy+dy;
+        if (xx<0||xx>=cols||yy<0||yy>=rows) continue;
+        scene.fog.cells[yy*cols+xx] = val;
+      }
+    }
+    _ttbRedrawFogCanvas(scene);
+  }
+
+  function _ttbEnsureFogMesh() {
+    if (tt.fogMesh) return;
+    var canvas = document.createElement('canvas');
+    canvas.width = 512; canvas.height = 384;
+    tt.fogCanvasEl = canvas;
+    tt.fogCtx = canvas.getContext('2d');
+    tt.fogTexture = new THREE.CanvasTexture(canvas);
+    var geo = new THREE.PlaneGeometry(1, 1);
+    var mat = new THREE.MeshBasicMaterial({ map: tt.fogTexture, transparent: true, depthWrite: false });
+    tt.fogMesh = new THREE.Mesh(geo, mat);
+    tt.fogMesh.rotation.x = -Math.PI/2;
+    tt.fogMesh.position.y = 0.09;
+    tt.scene.add(tt.fogMesh);
+  }
+
+  function _ttbRebuildFog() {
+    var scene = _ttbActiveScene();
+    _ttbEnsureFogMesh();
+    tt.fogMesh.geometry.dispose();
+    tt.fogMesh.geometry = new THREE.PlaneGeometry(tt.boardW, tt.boardH);
+    tt.fogMesh.visible = !!(scene && scene.fog && scene.fog.enabled);
+    if (tt.fogMesh.visible) _ttbRedrawFogCanvas(scene);
+  }
+
+  function _ttbRedrawFogCanvas(scene) {
+    if (!tt.fogCtx || !scene || !scene.fog) return;
+    var cols = scene.fog.cols, rows = scene.fog.rows;
+    var cw = tt.fogCanvasEl.width / cols, ch = tt.fogCanvasEl.height / rows;
+    var mestre = _ttbIsMestre();
+    var ctx = tt.fogCtx;
+    ctx.clearRect(0, 0, tt.fogCanvasEl.width, tt.fogCanvasEl.height);
+    ctx.fillStyle = mestre ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,1)';
+    var cells = scene.fog.cells;
+    for (var row=0; row<rows; row++) {
+      for (var col=0; col<cols; col++) {
+        if (cells[row*cols+col] === '1') ctx.fillRect(col*cw, row*ch, cw+1, ch+1);
+      }
+    }
+    tt.fogTexture.needsUpdate = true;
+  }
+
+  // ══════════════════════ INICIATIVA (persiste na campanha, não na cena) ══════════════════════
+  tt.initiative = { entries: {}, currentId: null };
+
+  window.tt3dAddInitiative = function() {
+    var nameEl = document.getElementById('tt3d-init-name'), valEl = document.getElementById('tt3d-init-val');
+    var name = (nameEl.value || '').trim() || _ttbMyUsername();
+    var val = parseInt(valEl.value, 10); if (isNaN(val)) val = 10;
+    var id = _ttbUid();
+    _ttbSet(_ttbPath() + '/initiative/entries/' + id, { name: name, value: val, addedBy: _ttbMyUsername() });
+    nameEl.value = ''; valEl.value = '';
+  };
+
+  window.tt3dRemoveInitiative = function(id) {
+    var e = tt.initiative.entries[id];
+    if (!e) return;
+    if (!_ttbIsMestre() && e.addedBy !== _ttbMyUsername()) { if (typeof showToast==='function') showToast('✕ Você só remove suas próprias entradas.', 'err'); return; }
+    _ttbSet(_ttbPath() + '/initiative/entries/' + id, null);
+  };
+
+  window.tt3dNextTurn = function() {
+    if (!_ttbIsMestre()) { if (typeof showToast==='function') showToast('✕ Só o Mestre avança o turno.', 'err'); return; }
+    var ids = Object.keys(tt.initiative.entries || {});
+    if (!ids.length) return;
+    ids.sort(function(a,b){ return (tt.initiative.entries[b].value||0) - (tt.initiative.entries[a].value||0); });
+    var curIdx = ids.indexOf(tt.initiative.currentId);
+    var next = ids[(curIdx + 1) % ids.length];
+    _ttbSet(_ttbPath() + '/initiative/currentId', next);
+  };
+
+  function _ttbRenderInitiative() {
+    var box = document.getElementById('tt3d-initiative-list');
+    if (!box) return;
+    var entries = tt.initiative.entries || {};
+    var ids = Object.keys(entries).sort(function(a,b){ return (entries[b].value||0) - (entries[a].value||0); });
+    box.innerHTML = ids.map(function(id){
+      var e = entries[id];
+      var isCur = id === tt.initiative.currentId;
+      return '<div class="tt3d-token-item" style="'+(isCur?'border-color:#7ee0ff;background:rgba(126,224,255,.12)':'')+'">'
+        + (isCur ? '▶ ' : '')
+        + '<span style="font-weight:700">'+e.value+'</span> <span>'+_ttbEsc(e.name)+'</span>'
+        + '<span style="margin-left:auto;cursor:pointer;opacity:.6" onclick="tt3dRemoveInitiative(\''+id+'\')">✕</span>'
+        + '</div>';
+    }).join('') || '<p class="tt3d-hint">Ninguém na iniciativa ainda.</p>';
+  }
 
 })();
 </script>
